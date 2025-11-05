@@ -74,6 +74,24 @@ This will build (if needed) and execute your program in one command!
 
 ## 📖 Commands
 
+### `jfu init`
+
+Initialize a new `jfu.toml` configuration file in the current directory.
+
+```bash
+jfu init              # Create jfu.toml with defaults
+jfu init --force      # Overwrite existing jfu.toml
+```
+
+Creates a configuration file with sensible defaults:
+- `src_dir = "."` (current directory)
+- `out_dir = "./out"`
+- `cache_file = "./jfu-cache.json"`
+- `entrypoint = "Main.java"`
+- `jvm_opts = ["-Xmx256m"]`
+
+**Note:** This is the recommended first step for any new jfu project.
+
 ### `jfu build [FILE]`
 
 Builds the specified Java file and its dependencies.
@@ -139,6 +157,42 @@ jfu clean
 This deletes:
 - `./out/` directory (compiled classes)
 - `./jfu-cache.json` (build cache)
+
+---
+
+## 🚀 Quick Start Guide
+
+### 1. Initialize Your Project
+
+```bash
+jfu init
+```
+
+This creates a `jfu.toml` configuration file with sensible defaults.
+
+### 2. Add Dependencies to Your Java Files
+
+```java
+/*
+dependent "Helper.java"
+*/
+public class Main {
+    public static void main(String[] args) {
+        Helper.help();
+    }
+}
+```
+
+### 3. Build and Run
+
+```bash
+jfu run
+```
+
+That's it! jfu will automatically:
+- Build the dependency graph
+- Compile only what's needed
+- Run your program
 
 ## 🏗️ Project Structure
 
@@ -240,6 +294,7 @@ Fast, reproducible builds with intelligent caching.
 - [x] Phase 9: Colored Output
 - [x] Phase 10: Configuration File Support (`jfu.toml`)
 - [x] Phase 10.1: Entrypoint Configuration
+- [x] Phase 10.2: Init Command
 - [ ] Phase 11: Watch Mode (`jfu watch`)
 - [ ] Phase 12: Automatic Dependency Discovery (scan imports)
 - [ ] Phase 13: Multi-module Support
