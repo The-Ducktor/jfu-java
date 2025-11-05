@@ -11,8 +11,20 @@ out_dir = "./out"
 cache_file = "./jfu-cache.json"
 
 # Default entrypoint when no file is specified
-# If you have multiple main classes, set this to your primary entry
+# This is useful when you have multiple classes with main() methods
 entrypoint = "Main.java"
 
 # JVM options to pass when running your program
 jvm_opts = ["-Xmx256m"]
+
+# Future features (not yet implemented):
+#
+# [dependencies]
+# # External JAR files to include in classpath
+# libs = [
+#     "lib/commons-lang3-3.12.0.jar",
+# ]
+#
+# [compiler]
+# # Additional javac options
+# javac_opts = ["-Xlint:unchecked", "-g"]
