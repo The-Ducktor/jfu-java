@@ -1,39 +1,40 @@
 # jfu - Java Fast Utility
 
-A blazingly fast, incremental build tool for Java projects inspired by Cargo. Say goodbye to slow builds and hello to intelligent caching!
+> A quick, fun little build tool for Java when you just can't be bothered with Maven/Gradle.
 
-## ✨ Features
+Vibe-coded in Rust for those times when you just want to `javac` some files but with *slightly* more intelligence. That's it. That's the tool.
 
-- **🚀 Incremental Builds**: Only recompiles changed files using SHA-256 hashing
-- **📦 Dependency Resolution**: Automatic dependency tracking via simple comments
-- **🔄 Topological Sorting**: Compiles files in the correct order
-- **⚡ Fast**: Skips unchanged files, saving compilation time
-- **🎨 Beautiful Output**: Colored, emoji-rich terminal output
-- **🧹 Clean Commands**: Easy artifact cleanup
-- **📊 Dependency Trees**: Visualize your project structure
-- **🔧 Simple Configuration**: Optional `jfu.toml` support (coming soon)
+## Why Does This Exist?
 
-## 📥 Installation
+Sometimes you're working on a tiny Java project—maybe a university assignment, maybe a leetcode warm-up, maybe just messing around—and you think "I really don't want to set up a whole Maven project for this."
 
-### From Source
+But you also don't want to manually run `javac` in the right order every single time.
+
+So here we are. It's not meant to replace real build tools. It's not meant to scale. It's just meant to be _nice_ for small stuff.
+
+## What It Does
+
+- **Tracks dependencies** via simple comments at the top of your Java files
+- **Only recompiles what changed** (SHA-256 hashing, because why not)
+- **Pretty output** with colors and emojis (we're not animals)
+- **Friendly error messages** (Java errors are scary, we make them less scary)
+- **Dead simple** to use
+
+That's literally it.
+
+## Quick Start
 
 ```bash
-git clone <repository-url>
-cd jfu-java
+# Build it (you need Rust)
 cargo build --release
+
+# Or just run it
+cargo run --release -- run YourFile.java
 ```
 
-The binary will be at `target/release/jfu-java`. You can copy it to your PATH:
+### Using It
 
-```bash
-cp target/release/jfu-java /usr/local/bin/jfu
-```
-
-## 🚀 Quick Start
-
-### 1. Annotate Your Dependencies
-
-Add dependency comments at the top of your Java files:
+Add a comment at the top of your Java file:
 
 ```java
 /*
@@ -42,377 +43,98 @@ dependent "Utils.java"
 */
 public class Main {
     public static void main(String[] args) {
-        Helper helper = new Helper();
-        helper.doSomething();
+        Helper.doThing();
     }
 }
 ```
 
-### 2. Build Your Project
-
-```bash
-jfu build Main.java
-```
-
-Output:
-```
-🔄 Checking dependencies...
-⚡ Compiling 3 file(s)...
-  ⚡ Helper.java
-  ⚡ Utils.java
-  ⚡ Main.java
-✅ Build complete (3 compiled)
-```
-
-### 3. Run Your Code
+Then:
 
 ```bash
 jfu run Main.java
 ```
 
-This will build (if needed) and execute your program in one command!
+Done. It'll figure out the rest.
 
-## 📖 Commands
+## Commands
 
-### `jfu init`
+- `jfu init` - Makes a config file (optional, but nice)
+- `jfu build [file]` - Compiles stuff
+- `jfu run [file]` - Compiles and runs stuff
+- `jfu clean` - Deletes the `out/` folder
+- `jfu tree [file]` - Shows your dependency tree (it's pretty)
 
-Initialize a new `jfu.toml` configuration file in the current directory.
+Add `--verbose` or `--force` if you're feeling fancy.
 
-```bash
-jfu init              # Create jfu.toml with defaults
-jfu init --force      # Overwrite existing jfu.toml
+## Configuration (Optional)
+
+Run `jfu init` to get a `jfu.toml`:
+
+```toml
+src_dir = "."              # Where your .java files live
+out_dir = "./out"          # Where .class files go
+entrypoint = "Main.java"   # Default file to run
+jvm_opts = ["-Xmx256m"]    # JVM flags
 ```
 
-Creates a configuration file with sensible defaults:
-- `src_dir = "."` (current directory)
-- `out_dir = "./out"`
-- `cache_file = "./jfu-cache.json"`
-- `entrypoint = "Main.java"`
-- `jvm_opts = ["-Xmx256m"]`
+Now you can just type `jfu run` without specifying a file. Neat.
 
-**Note:** This is the recommended first step for any new jfu project.
+## How It Works
 
-### `jfu build [FILE]`
+1. Reads `/* dependent "..." */` comments from your files
+2. Builds a dependency graph (DFS, topological sort, the works)
+3. Hashes each file to see what changed
+4. Only recompiles the changed ones
+5. Runs `javac` and `java` for you
 
-Builds the specified Java file and its dependencies.
+It caches everything in `jfu-cache.json` so the second build is instant. ⚡
 
-```bash
-jfu build                     # Build using entrypoint from jfu.toml (or Main.java)
-jfu build App.java            # Build specific file
-jfu build --verbose Main.java # Build with detailed output
-jfu build --force Main.java   # Force rebuild all files
-```
+## What It Doesn't Do
 
-**Options:**
-- `--verbose, -v`: Show detailed build information
-- `--force, -f`: Ignore cache and rebuild everything
+- Replace Maven/Gradle (please don't try)
+- Handle complex multi-module projects
+- Manage external dependencies (no JAR support yet)
+- Scale to large codebases
+- Make your code run faster (it just compiles faster)
 
-**Note:** If no file is specified, jfu uses the `entrypoint` from `jfu.toml`, or defaults to `Main.java`
+## Error Messages
 
-### `jfu run [FILE]`
+We made Java errors prettier because they're intimidating:
 
-Builds and runs the specified Java file.
+**Compilation errors** get formatted nicely with:
+- 📄 File and line number highlighted
+- 💬 Clear error message
+- Color-coded context
+- Helpful tips
 
-```bash
-jfu run                       # Run using entrypoint from jfu.toml (or Main.java)
-jfu run App.java              # Run specific file
-```
+**Runtime errors** (exceptions) show:
+- 🔥 Exception type in bold
+- 📍 Your code highlighted in cyan
+- Stack trace formatted clearly
 
-Automatically:
-1. Builds the project (incrementally)
-2. Extracts the class name
-3. Runs `java -cp out ClassName` with optional JVM options
+**Recursion errors** (StackOverflow) get special treatment:
+- 🔄 Clear "infinite recursion" warning
+- 💡 Common causes listed
+- Shows where the recursion is happening
 
-**Note:** If no file is specified, jfu uses the `entrypoint` from `jfu.toml`, or defaults to `Main.java`
+Because learning Java is hard enough without cryptic errors.
 
-### `jfu tree [FILE]`
+## Vibe Check
 
-Displays the dependency tree for visualization.
+This is a weekend project that got out of hand. It's not production-ready. It's not enterprise-grade. It's just a fun little tool that makes compiling small Java projects less annoying.
 
-```bash
-jfu tree                      # Show tree for entrypoint from jfu.toml (or Main.java)
-jfu tree Main.java            # Show tree for specific file
-```
+If it works for you, awesome! If you want more features, fork it or just use a real build tool. No pressure.
 
-Output:
-```
-📊 Dependency Tree:
+## License
 
-📦 Main.java
-  └─ Runner.java
-    └─ Helper.java
-  └─ Cool.java
-```
+MIT - Do whatever you want with it.
 
-**Note:** If no file is specified, jfu uses the `entrypoint` from `jfu.toml`, or defaults to `Main.java`
+## Thanks
 
-### `jfu clean`
-
-Removes all build artifacts.
-
-```bash
-jfu clean
-```
-
-This deletes:
-- `./out/` directory (compiled classes)
-- `./jfu-cache.json` (build cache)
+- Cargo (Rust's build tool) for the inspiration
+- Everyone who's had to run `javac *.java` manually
+- Coffee ☕
 
 ---
 
-## 🚀 Quick Start Guide
-
-### 1. Initialize Your Project
-
-```bash
-jfu init
-```
-
-This creates a `jfu.toml` configuration file with sensible defaults.
-
-### 2. Add Dependencies to Your Java Files
-
-```java
-/*
-dependent "Helper.java"
-*/
-public class Main {
-    public static void main(String[] args) {
-        Helper.help();
-    }
-}
-```
-
-### 3. Build and Run
-
-```bash
-jfu run
-```
-
-That's it! jfu will automatically:
-- Build the dependency graph
-- Compile only what's needed
-- Run your program
-
-## 🏗️ Project Structure
-
-```
-your-project/
-├── Main.java          # Source files (in current directory by default)
-├── Helper.java
-├── Utils.java
-├── jfu.toml           # Optional configuration file
-├── out/               # Compiled classes (auto-generated)
-│   ├── Main.class
-│   ├── Helper.class
-│   └── Utils.class
-└── jfu-cache.json     # Build cache (auto-generated)
-```
-
-**Note:** By default, jfu looks for source files in the current directory (`.`). You can configure this via `jfu.toml`
-
-## 🔧 How It Works
-
-### 1. Dependency Parsing
-
-jfu reads dependency comments from the top of each Java file:
-
-```java
-/*
-dependent "Dependency1.java"
-dependent "Dependency2.java"
-*/
-```
-
-### 2. Dependency Graph
-
-It builds a complete dependency graph by recursively analyzing all files.
-
-### 3. Topological Sort
-
-Files are sorted in compile-safe order (dependencies before dependents).
-
-### 4. Hash-Based Caching
-
-Each file is hashed with SHA-256. If the hash matches the cache:
-- ✅ Skip compilation
-- 📁 Use existing `.class` file
-
-If the hash differs or file is new:
-- ⚡ Recompile
-- 💾 Update cache
-
-### 5. Batch Compilation
-
-Changed files are compiled together in a single `javac` invocation for proper dependency resolution.
-
-## 📊 Cache Format
-
-The `jfu-cache.json` stores metadata about compiled files:
-
-```json
-{
-  "Main.java": {
-    "hash": "a1b2c3d4...",
-    "class_path": "./out/Main.class"
-  },
-  "Helper.java": {
-    "hash": "e5f6g7h8...",
-    "class_path": "./out/Helper.class"
-  }
-}
-```
-
-## 🎯 Use Cases
-
-### Small to Medium Projects
-
-Perfect for university assignments, coding challenges, or small utilities where you don't want the overhead of Maven/Gradle.
-
-### Rapid Prototyping
-
-Quick compilation feedback loop for testing ideas.
-
-### Learning Java
-
-Simple dependency management without complex build tool configuration.
-
-### CI/CD
-
-Fast, reproducible builds with intelligent caching.
-
-## 🔮 Roadmap
-
-- [x] Phase 1: Dependency Resolution
-- [x] Phase 2: Topological Sort
-- [x] Phase 3: Hash-based Cache
-- [x] Phase 4: Build Command
-- [x] Phase 5: Run Command
-- [x] Phase 6: Clean Command
-- [x] Phase 7: Tree Visualization
-- [x] Phase 8: CLI with clap
-- [x] Phase 9: Colored Output
-- [x] Phase 10: Configuration File Support (`jfu.toml`)
-- [x] Phase 10.1: Entrypoint Configuration
-- [x] Phase 10.2: Init Command
-- [ ] Phase 11: Watch Mode (`jfu watch`)
-- [ ] Phase 12: Automatic Dependency Discovery (scan imports)
-- [ ] Phase 13: Multi-module Support
-- [ ] Phase 14: JAR Packaging
-
-## 🛠️ Configuration File
-
-Create a `jfu.toml` in your project root for advanced configuration:
-
-```toml
-# Source directory containing your Java files
-# Defaults to "." (current directory)
-src_dir = "."
-
-# Output directory for compiled .class files
-out_dir = "./out"
-
-# Location of the build cache file
-cache_file = "./jfu-cache.json"
-
-# Default entrypoint when no file is specified
-# Useful when you have multiple classes with main() methods
-entrypoint = "App.java"
-
-# JVM options to pass when running your program
-jvm_opts = ["-Xmx512m", "-ea"]
-```
-
-### Entrypoint Feature
-
-The `entrypoint` setting is particularly useful for projects with multiple main classes:
-
-```toml
-entrypoint = "App.java"
-```
-
-Now you can run without specifying a file:
-```bash
-jfu run           # Uses App.java from config
-jfu build         # Builds App.java and dependencies
-jfu tree          # Shows App.java dependency tree
-```
-
-You can still override the entrypoint:
-```bash
-jfu run Main.java  # Runs Main.java instead
-```
-
-### Future Configuration Options
-
-```toml
-# Coming soon:
-[dependencies]
-# External JAR dependencies
-libs = ["lib/commons-lang.jar"]
-```
-
-## 🐛 Troubleshooting
-
-### "Compilation failed" errors
-
-Make sure all dependencies are correctly declared in the comment block:
-
-```java
-/*
-dependent "MissingFile.java"  # This file must exist!
-*/
-```
-
-### Circular dependencies detected
-
-Refactor your code to remove circular references:
-
-```
-A.java depends on B.java
-B.java depends on A.java  ❌ Not allowed!
-```
-
-### Cache out of sync
-
-Force rebuild to regenerate cache:
-
-```bash
-jfu build --force
-```
-
-Or clean and rebuild:
-
-```bash
-jfu clean
-jfu build
-```
-
-## 🤝 Contributing
-
-Contributions welcome! Areas for improvement:
-
-- Additional commands and features
-- Better error messages
-- Performance optimizations
-- IDE integration
-- Plugin system
-
-## 📝 License
-
-MIT License - See LICENSE file for details
-
-## 🙏 Acknowledgments
-
-Inspired by:
-- **Cargo** (Rust's build tool)
-- **Maven/Gradle** (Java build tools)
-- The need for a simple, fast Java build experience
-
-## 📫 Support
-
-For issues, questions, or suggestions, please open an issue on the repository.
-
----
-
-**Made with ❤️ for Java developers who want fast, simple builds**
+**Made for the vibes, not for production.**
