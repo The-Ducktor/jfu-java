@@ -780,6 +780,76 @@ fn format_java_errors(error_text: &str) -> String {
 fn format_runtime_errors(error_text: &str) -> String {
     let lines: Vec<&str> = error_text.lines().collect();
 
+    // Check for StackOverflowError (recursion)
+    if lines.iter().any(|line| line.contains("StackOverflowError")) {
+        let mut formatted = String::new();
+        formatted.push_str(&format!(
+            "\n{} {}\n",
+            "🔄".red(),
+            "Stack Overflow Error - Infinite Recursion Detected!"
+                .red()
+                .bold()
+        ));
+        formatted.push_str(&format!("{}\n", "─".repeat(70).red()));
+
+        formatted.push_str(&format!(
+            "\n  {} {}\n",
+            "💡".yellow(),
+            "This usually happens when:".yellow().bold()
+        ));
+        formatted.push_str("    • A method calls itself without a proper base case\n");
+        formatted.push_str("    • Methods call each other in a circular pattern\n");
+        formatted.push_str("    • A loop condition never becomes false\n\n");
+
+        // Find the repeating pattern in stack trace
+        let at_lines: Vec<&str> = lines
+            .iter()
+            .filter(|line| line.trim().starts_with("at "))
+            .take(10) // Show first 10 stack frames
+            .copied()
+            .collect();
+
+        if !at_lines.is_empty() {
+            formatted.push_str(&format!(
+                "  {} {}\n\n",
+                "📍".cyan(),
+                "Top of call stack (most recent calls):".cyan().bold()
+            ));
+
+            for (i, line) in at_lines.iter().enumerate() {
+                let trimmed = line.trim();
+                if trimmed.contains(".java:") {
+                    formatted.push_str(&format!("    {}. {}\n", i + 1, trimmed.cyan()));
+                } else {
+                    formatted.push_str(&format!("    {}. {}\n", i + 1, trimmed.bright_black()));
+                }
+            }
+
+            // Count total lines to show recursion depth
+            let total_at_lines = lines
+                .iter()
+                .filter(|line| line.trim().starts_with("at "))
+                .count();
+
+            if total_at_lines > 10 {
+                formatted.push_str(&format!(
+                    "\n    {} ... and {} more recursive calls\n",
+                    "↓".yellow(),
+                    total_at_lines - 10
+                ));
+            }
+        }
+
+        formatted.push_str(&format!("\n{}\n", "─".repeat(70).red()));
+        formatted.push_str(&format!(
+            "{} {} to prevent infinite recursion.\n",
+            "🔧".green(),
+            "Add a base case or exit condition".green().bold()
+        ));
+
+        return formatted;
+    }
+
     // Check if it's a Java exception
     if lines.iter().any(|line| line.contains("Exception")) {
         let mut formatted = String::new();
