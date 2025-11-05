@@ -4,13 +4,23 @@
 # Copy this file to `jfu.toml` in your project root and customize as needed.
 
 # Source directory containing your Java files
-src_dir = "./test"
+# Defaults to "." (current directory) if not specified
+src_dir = "."
 
 # Output directory for compiled .class files
 out_dir = "./out"
 
 # Location of the build cache file
 cache_file = "./jfu-cache.json"
+
+# Default entrypoint when no file is specified in commands
+# This is the file that will be used when you run:
+#   jfu build    (without specifying a file)
+#   jfu run      (without specifying a file)
+#   jfu tree     (without specifying a file)
+#
+# Useful when you have multiple classes with main() methods
+entrypoint = "Main.java"
 
 # JVM options to pass when running your program
 # These are applied when using `jfu run`

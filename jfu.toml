@@ -1,6 +1,7 @@
 # jfu Configuration File
 
 # Source directory containing your Java files
+# Defaults to "." (current directory)
 src_dir = "./test"
 
 # Output directory for compiled .class files
@@ -8,6 +9,10 @@ out_dir = "./out"
 
 # Location of the build cache file
 cache_file = "./jfu-cache.json"
+
+# Default entrypoint when no file is specified
+# If you have multiple main classes, set this to your primary entry
+entrypoint = "Main.java"
 
 # JVM options to pass when running your program
 jvm_opts = ["-Xmx256m"]

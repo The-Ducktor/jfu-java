@@ -79,7 +79,8 @@ This will build (if needed) and execute your program in one command!
 Builds the specified Java file and its dependencies.
 
 ```bash
-jfu build Main.java           # Build Main.java
+jfu build                     # Build using entrypoint from jfu.toml (or Main.java)
+jfu build App.java            # Build specific file
 jfu build --verbose Main.java # Build with detailed output
 jfu build --force Main.java   # Force rebuild all files
 ```
@@ -88,25 +89,31 @@ jfu build --force Main.java   # Force rebuild all files
 - `--verbose, -v`: Show detailed build information
 - `--force, -f`: Ignore cache and rebuild everything
 
+**Note:** If no file is specified, jfu uses the `entrypoint` from `jfu.toml`, or defaults to `Main.java`
+
 ### `jfu run [FILE]`
 
 Builds and runs the specified Java file.
 
 ```bash
-jfu run Main.java
+jfu run                       # Run using entrypoint from jfu.toml (or Main.java)
+jfu run App.java              # Run specific file
 ```
 
 Automatically:
 1. Builds the project (incrementally)
 2. Extracts the class name
-3. Runs `java -cp out ClassName`
+3. Runs `java -cp out ClassName` with optional JVM options
+
+**Note:** If no file is specified, jfu uses the `entrypoint` from `jfu.toml`, or defaults to `Main.java`
 
 ### `jfu tree [FILE]`
 
 Displays the dependency tree for visualization.
 
 ```bash
-jfu tree Main.java
+jfu tree                      # Show tree for entrypoint from jfu.toml (or Main.java)
+jfu tree Main.java            # Show tree for specific file
 ```
 
 Output:
@@ -118,6 +125,8 @@ Output:
     └─ Helper.java
   └─ Cool.java
 ```
+
+**Note:** If no file is specified, jfu uses the `entrypoint` from `jfu.toml`, or defaults to `Main.java`
 
 ### `jfu clean`
 
@@ -135,16 +144,18 @@ This deletes:
 
 ```
 your-project/
-├── test/              # Source files (configurable)
-│   ├── Main.java
-│   ├── Helper.java
-│   └── Utils.java
+├── Main.java          # Source files (in current directory by default)
+├── Helper.java
+├── Utils.java
+├── jfu.toml           # Optional configuration file
 ├── out/               # Compiled classes (auto-generated)
 │   ├── Main.class
 │   ├── Helper.class
 │   └── Utils.class
 └── jfu-cache.json     # Build cache (auto-generated)
 ```
+
+**Note:** By default, jfu looks for source files in the current directory (`.`). You can configure this via `jfu.toml`
 
 ## 🔧 How It Works
 
@@ -227,22 +238,60 @@ Fast, reproducible builds with intelligent caching.
 - [x] Phase 7: Tree Visualization
 - [x] Phase 8: CLI with clap
 - [x] Phase 9: Colored Output
-- [ ] Phase 10: Configuration File Support (`jfu.toml`)
+- [x] Phase 10: Configuration File Support (`jfu.toml`)
+- [x] Phase 10.1: Entrypoint Configuration
 - [ ] Phase 11: Watch Mode (`jfu watch`)
 - [ ] Phase 12: Automatic Dependency Discovery (scan imports)
 - [ ] Phase 13: Multi-module Support
 - [ ] Phase 14: JAR Packaging
 
-## 🛠️ Configuration (Future)
+## 🛠️ Configuration File
 
-Create a `jfu.toml` in your project root:
+Create a `jfu.toml` in your project root for advanced configuration:
 
 ```toml
-[build]
-src_dir = "src"
-out_dir = "target/classes"
-jvm_opts = ["-Xmx512m"]
+# Source directory containing your Java files
+# Defaults to "." (current directory)
+src_dir = "."
 
+# Output directory for compiled .class files
+out_dir = "./out"
+
+# Location of the build cache file
+cache_file = "./jfu-cache.json"
+
+# Default entrypoint when no file is specified
+# Useful when you have multiple classes with main() methods
+entrypoint = "App.java"
+
+# JVM options to pass when running your program
+jvm_opts = ["-Xmx512m", "-ea"]
+```
+
+### Entrypoint Feature
+
+The `entrypoint` setting is particularly useful for projects with multiple main classes:
+
+```toml
+entrypoint = "App.java"
+```
+
+Now you can run without specifying a file:
+```bash
+jfu run           # Uses App.java from config
+jfu build         # Builds App.java and dependencies
+jfu tree          # Shows App.java dependency tree
+```
+
+You can still override the entrypoint:
+```bash
+jfu run Main.java  # Runs Main.java instead
+```
+
+### Future Configuration Options
+
+```toml
+# Coming soon:
 [dependencies]
 # External JAR dependencies
 libs = ["lib/commons-lang.jar"]

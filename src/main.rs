@@ -33,23 +33,20 @@ struct Cli {
 enum Commands {
     /// Build the specified Java file and its dependencies
     Build {
-        /// Main Java file to build
-        #[arg(default_value = "Main.java")]
-        file: String,
+        /// Main Java file to build (uses entrypoint from jfu.toml or Main.java if not specified)
+        file: Option<String>,
     },
     /// Build and run the specified Java file
     Run {
-        /// Main Java file to run
-        #[arg(default_value = "Main.java")]
-        file: String,
+        /// Main Java file to run (uses entrypoint from jfu.toml or Main.java if not specified)
+        file: Option<String>,
     },
     /// Clean build artifacts
     Clean,
     /// Show dependency tree
     Tree {
-        /// Main Java file to analyze
-        #[arg(default_value = "Main.java")]
-        file: String,
+        /// Main Java file to analyze (uses entrypoint from jfu.toml or Main.java if not specified)
+        file: Option<String>,
     },
 }
 
@@ -89,10 +86,12 @@ struct Config {
     cache_file: PathBuf,
     #[serde(default)]
     jvm_opts: Vec<String>,
+    #[serde(default)]
+    entrypoint: Option<String>,
 }
 
 fn default_src_dir() -> PathBuf {
-    PathBuf::from("./test")
+    PathBuf::from(".")
 }
 
 fn default_out_dir() -> PathBuf {
@@ -110,6 +109,7 @@ impl Default for Config {
             out_dir: default_out_dir(),
             cache_file: default_cache_file(),
             jvm_opts: Vec::new(),
+            entrypoint: None,
         }
     }
 }
@@ -600,10 +600,25 @@ fn main() {
     };
 
     let result = match cli.command {
-        Commands::Build { file } => build_files(&ctx, &file),
-        Commands::Run { file } => run_file(&ctx, &file),
+        Commands::Build { file } => {
+            let file = file
+                .or_else(|| config.entrypoint.clone())
+                .unwrap_or_else(|| "Main.java".to_string());
+            build_files(&ctx, &file)
+        }
+        Commands::Run { file } => {
+            let file = file
+                .or_else(|| config.entrypoint.clone())
+                .unwrap_or_else(|| "Main.java".to_string());
+            run_file(&ctx, &file)
+        }
         Commands::Clean => clean(&config),
-        Commands::Tree { file } => show_tree(&config, &file),
+        Commands::Tree { file } => {
+            let file = file
+                .or_else(|| config.entrypoint.clone())
+                .unwrap_or_else(|| "Main.java".to_string());
+            show_tree(&config, &file)
+        }
     };
 
     if let Err(e) = result {
