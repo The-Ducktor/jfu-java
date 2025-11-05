@@ -1,0 +1,42 @@
+# jfu Configuration File
+#
+# This is an example configuration file for the jfu build tool.
+# Copy this file to `jfu.toml` in your project root and customize as needed.
+
+# Source directory containing your Java files
+src_dir = "./test"
+
+# Output directory for compiled .class files
+out_dir = "./out"
+
+# Location of the build cache file
+cache_file = "./jfu-cache.json"
+
+# JVM options to pass when running your program
+# These are applied when using `jfu run`
+jvm_opts = [
+    "-Xmx512m",           # Maximum heap size
+    "-Xms256m",           # Initial heap size
+    # "-XX:+UseG1GC",     # Use G1 garbage collector
+    # "-ea",              # Enable assertions
+    # "-Dfile.encoding=UTF-8"  # Set file encoding
+]
+
+# Future features (not yet implemented):
+#
+# [dependencies]
+# # External JAR files to include in classpath
+# libs = [
+#     "lib/commons-lang3-3.12.0.jar",
+#     "lib/gson-2.10.jar"
+# ]
+#
+# [compiler]
+# # Additional javac options
+# javac_opts = ["-Xlint:unchecked", "-g"]
+#
+# [package]
+# # JAR packaging configuration
+# name = "my-app"
+# version = "1.0.0"
+# main_class = "Main"
