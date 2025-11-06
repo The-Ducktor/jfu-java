@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use colored::*;
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
@@ -8,6 +9,15 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
+use syntect::easy::HighlightLines;
+use syntect::highlighting::ThemeSet;
+use syntect::parsing::SyntaxSet;
+use syntect::util::LinesWithEndings;
+
+lazy_static! {
+    static ref SYNTAX_SET: SyntaxSet = SyntaxSet::load_defaults_newlines();
+    static ref THEME_SET: ThemeSet = ThemeSet::load_defaults();
+}
 
 // ============================================================================
 // CLI Definition
@@ -718,7 +728,8 @@ fn format_java_errors(error_text: &str) -> String {
                 if i + 1 < lines.len() {
                     let code_line = lines[i + 1].trim();
                     if !code_line.is_empty() && !code_line.starts_with("^") {
-                        formatted.push_str(&format!("\n  {}\n", code_line.bright_black()));
+                        let highlighted_code = highlight_java_code(code_line);
+                        formatted.push_str(&format!("\n  {}\n", highlighted_code));
                     }
                 }
 
@@ -906,6 +917,21 @@ fn format_runtime_errors(error_text: &str) -> String {
             error_text.red()
         )
     }
+}
+
+// Add this new function for Java syntax highlighting using syntect
+fn highlight_java_code(code: &str) -> String {
+    let syntax = SYNTAX_SET
+        .find_syntax_by_extension("java")
+        .unwrap_or_else(|| SYNTAX_SET.find_syntax_plain_text());
+    let mut h = HighlightLines::new(syntax, &THEME_SET.themes["base16-ocean.dark"]);
+
+    let mut highlighted = String::new();
+    for line in LinesWithEndings::from(code) {
+        let ranges = h.highlight_line(line, &SYNTAX_SET).unwrap();
+        highlighted.push_str(&syntect::util::as_24_bit_terminal_escaped(&ranges, true));
+    }
+    highlighted
 }
 
 // ============================================================================
