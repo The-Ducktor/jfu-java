@@ -343,10 +343,15 @@ fn needs_rebuild(node: &Node, cache: &Cache, out_dir: &Path, force: bool) -> boo
 // ============================================================================
 
 fn build_files(ctx: &BuildContext, main_file: &str) -> Result<(), String> {
-    let main_path = ctx.config.src_dir.join(main_file);
+    // First try the current directory, then fall back to src_dir
+    let main_path = if Path::new(main_file).exists() {
+        PathBuf::from(main_file)
+    } else {
+        ctx.config.src_dir.join(main_file)
+    };
 
     if !main_path.exists() {
-        return Err(format!("File not found: {}", main_path.display()));
+        return Err(format!("File not found: {}", main_file));
     }
 
     println!("{} Checking dependencies...", "🔄".cyan());
@@ -599,10 +604,15 @@ fn print_tree(
 }
 
 fn show_tree(config: &Config, main_file: &str) -> Result<(), String> {
-    let main_path = config.src_dir.join(main_file);
+    // First try the current directory, then fall back to src_dir
+    let main_path = if Path::new(main_file).exists() {
+        PathBuf::from(main_file)
+    } else {
+        config.src_dir.join(main_file)
+    };
 
     if !main_path.exists() {
-        return Err(format!("File not found: {}", main_path.display()));
+        return Err(format!("File not found: {}", main_file));
     }
 
     let graph = build_dependency_graph(&main_path, &config.src_dir);
