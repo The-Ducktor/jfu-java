@@ -175,8 +175,8 @@ fn parse_dependencies(path: &Path) -> Vec<String> {
         }
 
         if in_comment || line.starts_with("/*") {
-            if let Some(start) = line.find("dependent \"") {
-                let rest = &line[start + 11..];
+            if let Some(start) = line.find("using \"") {
+                let rest = &line[start + 7..];
                 if let Some(end) = rest.find('"') {
                     let dep = &rest[..end];
                     deps.push(dep.to_string());

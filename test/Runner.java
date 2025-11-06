@@ -1,5 +1,6 @@
 /*
-dependent "Helper.java"
+using "Helper.java"
+using "Nothing.java"
 */
 class Runner {
 
@@ -10,5 +11,6 @@ class Runner {
         String result = helper.help();
 
         System.out.println("  Helper says: " + result);
+        helper.assist();
     }
 }

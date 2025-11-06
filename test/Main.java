@@ -1,6 +1,6 @@
 /*
-dependent "Runner.java"
-dependent "Cool.java"
+using "Runner.java"
+using "Cool.java"
 */
 public class Main {
 

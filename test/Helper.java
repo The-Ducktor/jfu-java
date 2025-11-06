@@ -6,5 +6,6 @@ class Helper {
 
     public void assist() {
         System.out.println("  Helper is assisting...");
+         System.out.println("  Helper is not...");
     }
 }

@@ -38,8 +38,8 @@ Add a comment at the top of your Java file:
 
 ```java
 /*
-dependent "Helper.java"
-dependent "Utils.java"
+using "Helper.java"
+using "Utils.java"
 */
 public class Main {
     public static void main(String[] args) {
