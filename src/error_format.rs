@@ -1,8 +1,26 @@
 use colored::*;
+use terminal_size::{Width, terminal_size};
 
 use crate::syntax::highlight_java_code;
 
+/// Get the current terminal width, defaulting to 80 if unable to detect
+fn get_terminal_width() -> usize {
+    if let Some((Width(w), _)) = terminal_size() {
+        w as usize
+    } else {
+        80 // Default fallback width
+    }
+}
+
+/// Create a separator line that fits the terminal width
+fn separator(width: usize) -> String {
+    "─".repeat(width.min(120)) // Cap at 120 for very wide terminals
+}
+
 pub fn format_java_errors(error_text: &str) -> String {
+    let term_width = get_terminal_width();
+    let sep_width = (term_width - 2).max(40); // Leave some margin
+
     let mut formatted = String::new();
     formatted.push_str(&format!(
         "\n{} {}\n",
@@ -29,7 +47,7 @@ pub fn format_java_errors(error_text: &str) -> String {
                 formatted.push_str(&format!(
                     "\n{} {}\n",
                     format!("Error #{}", error_count).yellow().bold(),
-                    "─".repeat(60).yellow()
+                    separator(sep_width - 12).yellow() // Subtract space for "Error #N "
                 ));
 
                 // Extract file and line number
@@ -87,7 +105,7 @@ pub fn format_java_errors(error_text: &str) -> String {
             }
         } else if line.contains(" error") && line.ends_with(" error") {
             // Summary line like "1 error" or "3 errors"
-            formatted.push_str(&format!("\n{}\n", "─".repeat(70).yellow()));
+            formatted.push_str(&format!("\n{}\n", separator(sep_width).yellow()));
             formatted.push_str(&format!("{} {}\n", "📊".yellow(), line.red().bold()));
         }
 
@@ -111,6 +129,9 @@ pub fn format_java_errors(error_text: &str) -> String {
 }
 
 pub fn format_runtime_errors(error_text: &str) -> String {
+    let term_width = get_terminal_width();
+    let sep_width = (term_width - 2).max(40); // Leave some margin
+
     let lines: Vec<&str> = error_text.lines().collect();
 
     // Check for StackOverflowError (recursion)
@@ -123,7 +144,7 @@ pub fn format_runtime_errors(error_text: &str) -> String {
                 .red()
                 .bold()
         ));
-        formatted.push_str(&format!("{}\n", "─".repeat(70).red()));
+        formatted.push_str(&format!("{}\n", separator(sep_width).red()));
 
         formatted.push_str(&format!(
             "\n  {} {}\n",
@@ -173,7 +194,7 @@ pub fn format_runtime_errors(error_text: &str) -> String {
             }
         }
 
-        formatted.push_str(&format!("\n{}\n", "─".repeat(70).red()));
+        formatted.push_str(&format!("\n{}\n", separator(sep_width).red()));
         formatted.push_str(&format!(
             "{} {} to prevent infinite recursion.\n",
             "🔧".green(),
@@ -191,7 +212,7 @@ pub fn format_runtime_errors(error_text: &str) -> String {
             "💥".red(),
             "Runtime Error".red().bold()
         ));
-        formatted.push_str(&format!("{}\n", "─".repeat(70).red()));
+        formatted.push_str(&format!("{}\n", separator(sep_width).red()));
 
         for (i, line) in lines.iter().enumerate() {
             let trimmed = line.trim();
@@ -223,7 +244,7 @@ pub fn format_runtime_errors(error_text: &str) -> String {
             }
         }
 
-        formatted.push_str(&format!("\n{}\n", "─".repeat(70).red()));
+        formatted.push_str(&format!("\n{}\n", separator(sep_width).red()));
         formatted.push_str(&format!(
             "{} Check the stack trace above to find the issue.\n",
             "💡".cyan()
