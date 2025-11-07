@@ -66,18 +66,31 @@ pub fn format_java_errors(error_text: &str) -> String {
 
                 // Show the problematic code line (next line usually)
                 if i + 1 < lines.len() {
-                    let code_line = lines[i + 1].trim();
-                    if !code_line.is_empty() && !code_line.starts_with("^") {
-                        let highlighted_code = highlight_java_code(code_line);
+                    let code_line = lines[i + 1];
+                    let trimmed = code_line.trim();
+                    if !trimmed.is_empty() && !trimmed.starts_with("^") {
+                        // Preserve leading whitespace for alignment
+                        let leading_spaces = code_line.len() - code_line.trim_start().len();
+                        let highlighted_code = highlight_java_code(trimmed);
                         formatted.push_str(&format!("\n  {}\n", highlighted_code));
-                    }
-                }
 
-                // Show the caret indicator (line after code)
-                if i + 2 < lines.len() {
-                    let caret_line = lines[i + 2].trim();
-                    if caret_line.starts_with("^") {
-                        formatted.push_str(&format!("  {}\n", caret_line.red().bold()));
+                        // Show the caret indicator (line after code) with proper alignment
+                        if i + 2 < lines.len() {
+                            let caret_line = lines[i + 2];
+                            let caret_trimmed = caret_line.trim_start();
+                            if caret_trimmed.starts_with("^") {
+                                // Calculate the offset: original leading spaces minus what we removed
+                                let caret_spaces = caret_line.len() - caret_line.trim_start().len();
+                                let offset = if caret_spaces > leading_spaces {
+                                    caret_spaces - leading_spaces
+                                } else {
+                                    0
+                                };
+                                let aligned_caret =
+                                    format!("{}{}", " ".repeat(offset), caret_trimmed);
+                                formatted.push_str(&format!("  {}\n", aligned_caret.red().bold()));
+                            }
+                        }
                     }
                 }
 

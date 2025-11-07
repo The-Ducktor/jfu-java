@@ -8,6 +8,7 @@ public class Test {
         }
         // This is a comment
         String str = "test string";
-        int y = ; // syntax error: missing expression
+        Integer notint = "Stuff";
+        //int y = ; // syntax error: missing expression
     }
 }
