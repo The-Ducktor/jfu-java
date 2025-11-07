@@ -81,7 +81,7 @@ Now you can just type `jfu run` without specifying a file. Neat.
 
 ## How It Works
 
-1. Reads `/* dependent "..." */` comments from your files
+1. Reads `/* using "..." */` comments from your files
 2. Builds a dependency graph (DFS, topological sort, the works)
 3. Hashes each file to see what changed
 4. Only recompiles the changed ones
