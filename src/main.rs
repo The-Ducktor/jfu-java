@@ -37,6 +37,10 @@ struct Cli {
     /// Force rebuild (ignore cache)
     #[arg(short, long, global = true)]
     force: bool,
+
+    /// Automatically include implicit dependencies in compilation
+    #[arg(long, global = true)]
+    auto_implicit: bool,
 }
 
 #[derive(Subcommand)]
@@ -73,7 +77,13 @@ enum Commands {
 fn main() {
     let cli = Cli::parse();
 
-    let config = Config::load();
+    let mut config = Config::load();
+
+    // CLI flag overrides config file
+    if cli.auto_implicit {
+        config.auto_include_implicit_deps = true;
+    }
+
     let ctx = BuildContext {
         config: config.clone(),
         verbose: cli.verbose,
@@ -98,7 +108,7 @@ fn main() {
             let file = file
                 .or_else(|| config.entrypoint.clone())
                 .unwrap_or_else(|| "Main.java".to_string());
-            show_tree(&config, &file)
+            show_tree(&config, &file, cli.verbose)
         }
         Commands::Init { force } => init_config(force),
     };

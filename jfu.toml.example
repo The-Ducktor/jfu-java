@@ -32,6 +32,12 @@ jvm_opts = [
     # "-Dfile.encoding=UTF-8"  # Set file encoding
 ]
 
+# Automatically include implicit dependencies in compilation
+# When set to true, classes referenced in your code but not declared in the
+# header comment will be automatically included in the build.
+# When set to false (default), warnings will be shown for implicit dependencies.
+auto_include_implicit_deps = false
+
 # Future features (not yet implemented):
 #
 # [dependencies]

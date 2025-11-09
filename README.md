@@ -15,6 +15,7 @@ So here we are. It's not meant to replace real build tools. It's not meant to sc
 ## What It Does
 
 - **Tracks dependencies** via simple comments at the top of your Java files
+- **Detects implicit dependencies** - warns when you use classes without declaring them
 - **Only recompiles what changed** (SHA-256 hashing, because why not)
 - **Pretty output** with colors and emojis (we're not animals)
 - **Friendly error messages** (Java errors are scary, we make them less scary)
@@ -63,21 +64,65 @@ Done. It'll figure out the rest.
 - `jfu run [file]` - Compiles and runs stuff
 - `jfu clean` - Deletes the `out/` folder
 - `jfu tree [file]` - Shows your dependency tree (it's pretty)
+  - Implicit dependencies are always shown in **magenta**
 
-Add `--verbose` or `--force` if you're feeling fancy.
+### Global Flags
+
+- `--verbose` / `-v` - Show verbose output
+- `--force` / `-f` - Force rebuild (ignore cache)
+- `--auto-implicit` - Automatically include implicit dependencies in compilation
 
 ## Configuration (Optional)
 
 Run `jfu init` to get a `jfu.toml`:
 
 ```toml
-src_dir = "."              # Where your .java files live
-out_dir = "./out"          # Where .class files go
-entrypoint = "Main.java"   # Default file to run
-jvm_opts = ["-Xmx256m"]    # JVM flags
+src_dir = "."                        # Where your .java files live
+out_dir = "./out"                    # Where .class files go
+entrypoint = "Main.java"             # Default file to run
+jvm_opts = ["-Xmx256m"]              # JVM flags
+auto_include_implicit_deps = false   # Auto-compile implicit dependencies
 ```
 
 Now you can just type `jfu run` without specifying a file. Neat.
+
+### Implicit Dependency Detection
+
+`jfu` scans your code for references to public classes in the same directory that aren't declared in your header comments. When it finds them, you'll see warnings like:
+
+```
+⚠️ Helper.java references classes without declaring them in header:
+   → Class 'HelperTest' is referenced but not declared in header
+     💡 Add 'using "HelperTest.java"' to the header comment
+```
+
+**Two modes:**
+
+1. **Warning mode (default)**: `auto_include_implicit_deps = false` or no flag
+   - Shows warnings but doesn't automatically compile the missing dependencies
+   - You should add them to your header comment
+
+2. **Auto-include mode**: `auto_include_implicit_deps = true` or `--auto-implicit` flag
+   - Automatically includes implicit dependencies in compilation
+   - Useful for quick prototyping, but you should still fix your headers
+   - CLI flag: `jfu build Main.java --auto-implicit`
+   - Config option: Set `auto_include_implicit_deps = true` in `jfu.toml`
+
+**Viewing implicit dependencies:**
+
+The `jfu tree` command always shows implicit dependencies in **magenta** with an `(implicit)` label:
+
+```
+📦 Main.java
+  └─ Runner.java
+    └─ Helper.java
+      └─  HelperTest.java (implicit)
+  └─ Cool.java
+
+ℹ️ Implicit dependencies shown in magenta
+```
+
+This helps catch missing dependencies early and keeps your code explicit.
 
 ## How It Works
 

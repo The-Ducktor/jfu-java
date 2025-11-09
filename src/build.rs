@@ -28,7 +28,11 @@ pub fn build_files(ctx: &BuildContext, main_file: &str) -> Result<(), String> {
     println!("{} Checking dependencies...", "🔄".cyan());
 
     // Build dependency graph
-    let graph = build_dependency_graph(&main_path, &ctx.config.src_dir);
+    let graph = build_dependency_graph(
+        &main_path,
+        &ctx.config.src_dir,
+        ctx.config.auto_include_implicit_deps,
+    );
 
     if ctx.verbose {
         println!("{} Dependency graph:", "📊".cyan());

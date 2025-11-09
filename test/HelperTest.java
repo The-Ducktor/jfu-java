@@ -3,17 +3,13 @@
 
 */
 
-class Helper {
+public class HelperTest {
 
     public String help() {
         return "I'm helping Runner do its job!";
     }
-  
 
     public void assist() {
         System.out.println("  Helper is assisting...");
-         System.out.println("  Helper is not...");
-         HelperTest tester = new HelperTest();
-         tester.assist();
     }
 }

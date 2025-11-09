@@ -14,6 +14,8 @@ pub struct Config {
     pub jvm_opts: Vec<String>,
     #[serde(default)]
     pub entrypoint: Option<String>,
+    #[serde(default)]
+    pub auto_include_implicit_deps: bool,
 }
 
 fn default_src_dir() -> PathBuf {
@@ -36,6 +38,7 @@ impl Default for Config {
             cache_file: default_cache_file(),
             jvm_opts: Vec::new(),
             entrypoint: None,
+            auto_include_implicit_deps: false,
         }
     }
 }
