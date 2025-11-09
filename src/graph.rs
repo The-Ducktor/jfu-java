@@ -15,7 +15,7 @@ pub struct Node {
     pub implicit_deps: Vec<String>,
 }
 
-/// Finds all public classes in the same directory as the given file
+/// Finds all public types (classes, interfaces, enums, records) in the same directory as the given file
 fn find_public_classes_in_dir(file_path: &Path) -> Vec<String> {
     let mut classes = Vec::new();
 
@@ -43,12 +43,16 @@ fn find_public_classes_in_dir(file_path: &Path) -> Vec<String> {
             continue;
         }
 
-        // Read the file and check if it has a public class
+        // Read the file and check if it has a public type
         if let Ok(content) = fs::read_to_string(&path) {
-            // Look for public class declarations
-            let class_regex = Regex::new(r"(?m)^\s*public\s+class\s+(\w+)").unwrap();
+            // Look for public type declarations (class, interface, enum, record, abstract class)
+            // Matches: public class, public interface, public enum, public record, public abstract class
+            let type_regex = Regex::new(
+                r"(?m)^\s*public\s+(?:abstract\s+)?(?:class|interface|enum|record)\s+(\w+)",
+            )
+            .unwrap();
 
-            for cap in class_regex.captures_iter(&content) {
+            for cap in type_regex.captures_iter(&content) {
                 if let Some(class_name) = cap.get(1) {
                     let name = class_name.as_str().to_string();
                     classes.push(name);
@@ -78,8 +82,12 @@ fn find_class_references(path: &Path, declared_deps: &[String]) -> Vec<String> {
         .map(|d| d.trim_end_matches(".java").to_string())
         .collect();
 
-    // Extract the current file's class name to exclude it from references
-    let class_decl_regex = Regex::new(r"(?m)^\s*(?:public\s+)?class\s+(\w+)").unwrap();
+    // Extract the current file's type name to exclude it from references
+    // Matches: class, interface, enum, record (with or without public/abstract modifiers)
+    let class_decl_regex = Regex::new(
+        r"(?m)^\s*(?:public\s+)?(?:abstract\s+)?(?:class|interface|enum|record)\s+(\w+)",
+    )
+    .unwrap();
     if let Some(cap) = class_decl_regex.captures(&content) {
         if let Some(class_name) = cap.get(1) {
             current_class_name = Some(class_name.as_str().to_string());
@@ -147,7 +155,7 @@ fn find_class_references(path: &Path, declared_deps: &[String]) -> Vec<String> {
     references.into_iter().collect()
 }
 
-/// Checks for implicit dependencies and returns warnings
+/// Checks for implicit dependencies (public types referenced but not declared) and returns warnings
 pub fn check_implicit_dependencies(path: &Path, declared_deps: &[String]) -> Vec<String> {
     let public_classes = find_public_classes_in_dir(path);
     let referenced_classes = find_class_references(path, declared_deps);
@@ -228,27 +236,20 @@ pub fn build_dependency_graph(
         // Warn about implicit dependencies
         if !implicit_deps.is_empty() {
             let file_name = path.file_name().unwrap().to_string_lossy();
-            eprintln!(
-                "{} {} references classes without declaring them in header:",
-                "⚠️".yellow(),
-                file_name.bright_white()
-            );
             for imp_dep in &implicit_deps {
-                eprintln!(
-                    "   {} Class '{}' is referenced but not declared in header",
-                    "→".yellow(),
-                    imp_dep.bright_cyan()
-                );
                 if auto_include_implicit {
                     eprintln!(
-                        "     {} Auto-including '{}.java' in compilation",
-                        "✓".green(),
-                        imp_dep
+                        "     {} implicit dependency `{}` in `{}`",
+                        "Warning:".yellow().bold(),
+                        imp_dep.cyan(),
+                        file_name
                     );
                 } else {
                     eprintln!(
-                        "     {} Add 'using \"{}.java\"' to the header comment",
-                        "💡".yellow(),
+                        "     {} implicit dependency `{}` in `{}` (add 'using \"{}.java\"' to header)",
+                        "Warning:".yellow().bold(),
+                        imp_dep.cyan(),
+                        file_name,
                         imp_dep
                     );
                 }
@@ -271,7 +272,11 @@ pub fn build_dependency_graph(
             if dep_path.exists() {
                 dfs(&dep_path, base, visited, graph, auto_include_implicit);
             } else {
-                eprintln!("{} Dependency not found: {}", "⚠️".yellow(), dep);
+                eprintln!(
+                    "       {} dependency `{}` not found",
+                    "Error:".red().bold(),
+                    dep
+                );
             }
         }
 

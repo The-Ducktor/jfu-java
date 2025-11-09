@@ -21,3 +21,9 @@ lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
+
+[profile.release-fast]
+inherits = "release"
+opt-level = 2
+lto = "thin"
+codegen-units = 16

@@ -13,7 +13,7 @@ pub fn run_file(ctx: &BuildContext, main_file: &str) -> Result<(), String> {
         .strip_suffix(".java")
         .ok_or_else(|| format!("Invalid Java file: {}", main_file))?;
 
-    println!("\n{} Running {}...\n", "🚀".green(), class_name);
+    println!("     {} `java {}`", "Running".green().bold(), class_name);
 
     // Run the Java program with optional JVM opts
     let mut cmd = Command::new("java");

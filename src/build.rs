@@ -25,7 +25,7 @@ pub fn build_files(ctx: &BuildContext, main_file: &str) -> Result<(), String> {
         return Err(format!("File not found: {}", main_file));
     }
 
-    println!("{} Checking dependencies...", "🔄".cyan());
+    // No message here - will show in compilation phase
 
     // Build dependency graph
     let graph = build_dependency_graph(
@@ -74,8 +74,9 @@ pub fn build_files(ctx: &BuildContext, main_file: &str) -> Result<(), String> {
 
     if files_to_compile.is_empty() {
         println!(
-            "{} Everything up to date (skipped {} files)",
-            "✅".green(),
+            "    {} {} class file(s) ({} up-to-date)",
+            "Finished".green().bold(),
+            skipped,
             skipped
         );
         return Ok(());
@@ -83,18 +84,10 @@ pub fn build_files(ctx: &BuildContext, main_file: &str) -> Result<(), String> {
 
     // Compile files together in one javac invocation
     println!(
-        "{} Compiling {} file(s)...",
-        "⚡".yellow(),
+        "   {} {} file(s)",
+        "Compiling".green().bold(),
         files_to_compile.len()
     );
-
-    for node in &files_to_compile {
-        if ctx.verbose {
-            println!("  {} Compiling {}...", "🔨".cyan(), node.name);
-        } else {
-            println!("  {} {}", "⚡".yellow(), node.name);
-        }
-    }
 
     // Build javac command with all files
     let mut cmd = Command::new("javac");
@@ -141,15 +134,17 @@ pub fn build_files(ctx: &BuildContext, main_file: &str) -> Result<(), String> {
 
     if skipped > 0 {
         println!(
-            "{} Build complete ({} compiled, {} skipped)",
-            "✅".green(),
+            "    {} {} class file(s) ({} compiled, {} up-to-date)",
+            "Finished".green().bold(),
+            files_to_compile.len() + skipped,
             files_to_compile.len(),
             skipped
         );
     } else {
         println!(
-            "{} Build complete ({} compiled)",
-            "✅".green(),
+            "    {} {} class file(s) ({} compiled)",
+            "Finished".green().bold(),
+            files_to_compile.len(),
             files_to_compile.len()
         );
     }

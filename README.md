@@ -15,7 +15,7 @@ So here we are. It's not meant to replace real build tools. It's not meant to sc
 ## What It Does
 
 - **Tracks dependencies** via simple comments at the top of your Java files
-- **Detects implicit dependencies** - warns when you use classes without declaring them
+- **Detects implicit dependencies** - warns when you use public types (classes, interfaces, enums, records, abstract classes) without declaring them
 - **Only recompiles what changed** (SHA-256 hashing, because why not)
 - **Pretty output** with colors and emojis (we're not animals)
 - **Friendly error messages** (Java errors are scary, we make them less scary)
@@ -88,7 +88,7 @@ Now you can just type `jfu run` without specifying a file. Neat.
 
 ### Implicit Dependency Detection
 
-`jfu` scans your code for references to public classes in the same directory that aren't declared in your header comments. When it finds them, you'll see warnings like:
+`jfu` scans your code for references to public types (classes, interfaces, enums, records, abstract classes) in the same directory that aren't declared in your header comments. When it finds them, you'll see warnings like:
 
 ```
 ⚠️ Helper.java references classes without declaring them in header:

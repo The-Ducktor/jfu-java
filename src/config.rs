@@ -51,7 +51,6 @@ impl Config {
             match fs::read_to_string(&config_path) {
                 Ok(content) => match toml::from_str(&content) {
                     Ok(config) => {
-                        println!("{} Loaded configuration from jfu.toml", "⚙️".cyan());
                         return config;
                     }
                     Err(e) => {
