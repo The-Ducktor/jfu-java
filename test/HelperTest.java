@@ -10,6 +10,7 @@ public class HelperTest {
     }
 
     public void assist() {
-        System.out.println("  Helper is assisting...");
+        System.out.println("  HelperTest is assisting in testing...");
+        IO.println("test");
     }
 }

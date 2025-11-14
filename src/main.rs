@@ -9,6 +9,7 @@ mod error_format;
 mod graph;
 mod init;
 mod run;
+mod search;
 mod syntax;
 mod tree;
 
@@ -17,6 +18,7 @@ use clean::clean;
 use config::Config;
 use init::init_config;
 use run::run_file;
+use search::{interactive_search, search_class, search_methods};
 use tree::show_tree;
 
 // ============================================================================
@@ -68,6 +70,23 @@ enum Commands {
         #[arg(long)]
         force: bool,
     },
+    /// Search Java documentation
+    Search {
+        /// Class name to search for
+        class: Option<String>,
+
+        /// Search for methods in a class
+        #[arg(short, long)]
+        methods: bool,
+
+        /// Method name to filter (requires --methods)
+        #[arg(short = 'q', long)]
+        query: Option<String>,
+
+        /// Start interactive search mode
+        #[arg(short, long)]
+        interactive: bool,
+    },
 }
 
 // ============================================================================
@@ -111,6 +130,24 @@ fn main() {
             show_tree(&config, &file, cli.verbose)
         }
         Commands::Init { force } => init_config(force),
+        Commands::Search {
+            class,
+            methods,
+            query,
+            interactive,
+        } => {
+            if interactive {
+                interactive_search()
+            } else if let Some(class_name) = class {
+                if methods {
+                    search_methods(&class_name, query.as_deref())
+                } else {
+                    search_class(&class_name, cli.verbose)
+                }
+            } else {
+                Err("Please provide a class name to search or use --interactive".to_string())
+            }
+        }
     };
 
     if let Err(e) = result {

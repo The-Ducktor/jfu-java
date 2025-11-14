@@ -1,6 +1,7 @@
 use colored::*;
 use terminal_size::{Width, terminal_size};
 
+use crate::search::get_class_suggestions;
 use crate::syntax::highlight_java_code;
 
 /// Get the current terminal width, defaulting to 80 if unable to detect
@@ -31,6 +32,7 @@ pub fn format_java_errors(error_text: &str) -> String {
     let lines: Vec<&str> = error_text.lines().collect();
     let mut i = 0;
     let mut error_count = 0;
+    let mut unknown_classes = Vec::new();
 
     while i < lines.len() {
         let line = lines[i].trim();
@@ -108,6 +110,22 @@ pub fn format_java_errors(error_text: &str) -> String {
                             "•".blue(),
                             context_line.bright_black()
                         ));
+
+                        // Extract unknown class name from "symbol: class ClassName"
+                        if context_line.starts_with("symbol:") && context_line.contains("class ") {
+                            if let Some(class_start) = context_line.find("class ") {
+                                let class_name = &context_line[class_start + 6..]
+                                    .trim()
+                                    .split_whitespace()
+                                    .next()
+                                    .unwrap_or("");
+                                if !class_name.is_empty()
+                                    && class_name.chars().next().unwrap_or('a').is_uppercase()
+                                {
+                                    unknown_classes.push(class_name.to_string());
+                                }
+                            }
+                        }
                     } else if !context_line.contains(".java:") {
                         formatted.push_str(&format!("    {}\n", context_line.bright_black()));
                     } else {
@@ -136,6 +154,35 @@ pub fn format_java_errors(error_text: &str) -> String {
             "\n{} Fix the errors above and try again.\n",
             "💡".cyan()
         ));
+    }
+
+    // Provide suggestions for unknown classes
+    if !unknown_classes.is_empty() {
+        formatted.push_str(&format!(
+            "\n{} {}\n",
+            "💡".yellow(),
+            "Did you mean:".yellow().bold()
+        ));
+
+        for class_name in unknown_classes.iter().take(3) {
+            let suggestions = get_class_suggestions(class_name);
+            if !suggestions.is_empty() {
+                formatted.push_str(&format!(
+                    "\n  {} {} {}\n",
+                    "❓".yellow(),
+                    format!("Unknown class '{}'", class_name).red(),
+                    "- Try:".cyan()
+                ));
+                for suggestion in suggestions.iter().take(3) {
+                    formatted.push_str(&format!("     {} {}\n", "→".green(), suggestion.green()));
+                }
+                formatted.push_str(&format!(
+                    "\n     {} Use 'jfu search {}' for more info\n",
+                    "🔍".cyan(),
+                    class_name.cyan()
+                ));
+            }
+        }
     }
 
     formatted
