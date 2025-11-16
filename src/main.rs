@@ -17,6 +17,7 @@ mod tree;
 use build::{BuildContext, build_files};
 use clean::clean;
 use config::Config;
+use docs::init_docs;
 use init::init_config;
 use run::run_file;
 use search::{interactive_search, search_class, search_methods};
@@ -137,6 +138,9 @@ fn main() {
             query,
             interactive,
         } => {
+            // Initialize docs with verbose flag if needed
+            init_docs(cli.verbose);
+
             if interactive {
                 interactive_search()
             } else if let Some(class_name) = class {

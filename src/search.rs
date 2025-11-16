@@ -258,9 +258,28 @@ fn display_class_info(package: &Package, class: &Class, verbose: bool) {
 
 /// Display information about a method
 fn display_method(method: &Method, show_descriptions: bool) {
-    println!("  {} {}", "▸".cyan(), method.name.yellow().bold());
+    let overload_count = method.overloads.len();
+    let overload_text = if overload_count > 1 {
+        format!(" ({} overloads)", overload_count)
+    } else {
+        String::new()
+    };
+
+    println!(
+        "  {} {}{}",
+        "▸".cyan(),
+        method.name.yellow().bold(),
+        overload_text.dimmed()
+    );
 
     for (idx, overload) in method.overloads.iter().enumerate() {
+        let is_last = idx == method.overloads.len() - 1;
+        let prefix = if overload_count > 1 {
+            if is_last { "  └─" } else { "  ├─" }
+        } else {
+            "    "
+        };
+
         let deprecated_marker = if overload.deprecated {
             format!(" {}", "[DEPRECATED]".red())
         } else {
@@ -268,8 +287,8 @@ fn display_method(method: &Method, show_descriptions: bool) {
         };
 
         println!(
-            "    {} {}{}",
-            format!("[{}]", idx + 1).dimmed(),
+            "{}{}{}",
+            prefix.cyan(),
             overload.signature.green(),
             deprecated_marker
         );
@@ -277,15 +296,31 @@ fn display_method(method: &Method, show_descriptions: bool) {
         if show_descriptions && !overload.description.is_empty() {
             // Format description with indentation
             let desc_lines: Vec<&str> = overload.description.lines().collect();
-            for line in desc_lines {
+            let continuation = if overload_count > 1 {
+                if is_last { "     " } else { "  │  " }
+            } else {
+                "     "
+            };
+
+            // Only show first 3 lines of description for compactness
+            for (line_idx, line) in desc_lines.iter().take(3).enumerate() {
                 let trimmed = line.trim();
                 if !trimmed.is_empty() {
-                    println!("       {}", trimmed.dimmed());
+                    if line_idx == 0 {
+                        println!("{}{}", continuation.cyan(), trimmed.dimmed());
+                    } else {
+                        println!("{}{}", continuation.cyan(), trimmed.dimmed());
+                    }
                 }
             }
+
+            // If there are more lines, indicate truncation
+            if desc_lines.len() > 3 {
+                println!("{}...", continuation.cyan());
+            }
         }
-        println!();
     }
+    println!();
 }
 
 /// Display package information

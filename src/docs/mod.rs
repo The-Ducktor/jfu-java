@@ -27,5 +27,5 @@
 mod embedded;
 mod types;
 
-pub use embedded::get_docs;
+pub use embedded::{get_docs, init_docs};
 pub use types::{Class, Method, Package};

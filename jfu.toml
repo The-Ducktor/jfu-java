@@ -9,7 +9,7 @@ out_dir = "./out"
 
 # Location of the build cache directory
 # Cache files are stored per entry point as .jfu/cache/{hash}.json
-cache_file = "./.jfu/cache"
+cache_file = "./.jfu/cache.json"
 
 # Default entrypoint when no file is specified
 # This is useful when you have multiple classes with main() methods

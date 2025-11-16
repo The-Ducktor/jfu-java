@@ -5,4 +5,4 @@
 pub mod docs;
 
 // Re-export commonly used types
-pub use docs::{Class, Method, Package, get_docs};
+pub use docs::{Class, Method, Package, get_docs, init_docs};

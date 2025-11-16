@@ -1,19 +1,17 @@
 use super::types::{DocsIndex, JavaDocs};
 use flate2::read::GzDecoder;
-use lazy_static::lazy_static;
 use std::io::Read;
+use std::sync::OnceLock;
 
 // Embed the compressed JSON at compile time
 static COMPRESSED_DOCS: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/all-packages-methods.json.gz"));
 
-lazy_static! {
-    /// Global docs index, initialized on first access
-    pub static ref DOCS: DocsIndex = load_docs();
-}
+/// Global docs index, initialized on first access
+static DOCS: OnceLock<DocsIndex> = OnceLock::new();
 
 /// Load and decompress the embedded docs, then build the index
-fn load_docs() -> DocsIndex {
+fn load_docs(verbose: bool) -> DocsIndex {
     let start = std::time::Instant::now();
 
     // Decompress the embedded data
@@ -38,20 +36,29 @@ fn load_docs() -> DocsIndex {
 
     let total_time = start.elapsed();
 
-    eprintln!("📚 Java docs loaded:");
-    eprintln!("   Decompression: {:?}", decompress_time);
-    eprintln!("   JSON parsing:  {:?}", parse_time);
-    eprintln!("   Index build:   {:?}", index_time);
-    eprintln!("   Total time:    {:?}", total_time);
-    eprintln!("   Classes indexed: {}", index.classes.len());
-    eprintln!("   Methods indexed: {}", index.methods.len());
+    if verbose {
+        eprintln!("📚 Java docs loaded:");
+        eprintln!("   Decompression: {:?}", decompress_time);
+        eprintln!("   JSON parsing:  {:?}", parse_time);
+        eprintln!("   Index build:   {:?}", index_time);
+        eprintln!("   Total time:    {:?}", total_time);
+        eprintln!("   Classes indexed: {}", index.classes.len());
+        eprintln!("   Methods indexed: {}", index.methods.len());
+    }
 
     index
 }
 
+/// Initialize the docs with verbose output control
+/// This is optional - calling get_docs() will auto-initialize with verbose=false
+pub fn init_docs(verbose: bool) {
+    DOCS.get_or_init(|| load_docs(verbose));
+}
+
 /// Get a reference to the global docs index
+/// Automatically initializes the docs on first call (without verbose output)
 pub fn get_docs() -> &'static DocsIndex {
-    &DOCS
+    DOCS.get_or_init(|| load_docs(false))
 }
 
 #[cfg(test)]
