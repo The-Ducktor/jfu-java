@@ -74,16 +74,8 @@ enum Commands {
     },
     /// Search Java documentation
     Search {
-        /// Class name to search for
-        class: Option<String>,
-
-        /// Search for methods in a class
-        #[arg(short, long)]
-        methods: bool,
-
-        /// Method name to filter (requires --methods)
-        #[arg(short = 'q', long)]
-        query: Option<String>,
+        /// Class name and optional method query
+        args: Vec<String>,
 
         /// Start interactive search mode
         #[arg(short, long)]
@@ -132,25 +124,22 @@ fn main() {
             show_tree(&config, &file, cli.verbose)
         }
         Commands::Init { force } => init_config(force),
-        Commands::Search {
-            class,
-            methods,
-            query,
-            interactive,
-        } => {
+        Commands::Search { args, interactive } => {
             // Initialize docs with verbose flag if needed
             init_docs(cli.verbose);
 
             if interactive {
                 interactive_search()
-            } else if let Some(class_name) = class {
-                if methods {
-                    search_methods(&class_name, query.as_deref())
-                } else {
-                    search_class(&class_name, cli.verbose)
-                }
-            } else {
+            } else if args.is_empty() {
                 Err("Please provide a class name to search or use --interactive".to_string())
+            } else {
+                let class = &args[0];
+                if args.len() == 1 {
+                    search_class(class, cli.verbose)
+                } else {
+                    let method_query = args[1..].join(" ");
+                    search_methods(class, Some(&method_query))
+                }
             }
         }
     };

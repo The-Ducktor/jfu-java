@@ -8,7 +8,7 @@ public class Test {
         }
         // This is a comment
         String str = "test string";
-        Integer notint = "Stuff";
+        Integer notint = "Stuff"; // wrong type
         
         String test = "test".toUppercae(); // wrong captital
         //int y = ; // syntax error: missing expression

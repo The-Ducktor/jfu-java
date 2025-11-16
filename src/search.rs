@@ -56,11 +56,51 @@ pub fn search_methods(class_name: &str, method_query: Option<&str>) -> Result<()
             );
 
             let methods: Vec<&Method> = if let Some(query) = method_query {
-                class
+                let query_lower = query.to_lowercase().replace(" ", "");
+
+                // First try exact substring matches
+                let substring_matches: Vec<&Method> = class
                     .methods
                     .iter()
-                    .filter(|m| m.name.to_lowercase().contains(&query.to_lowercase()))
-                    .collect()
+                    .filter(|m| m.name.to_lowercase().contains(&query_lower))
+                    .collect();
+
+                if !substring_matches.is_empty() {
+                    substring_matches
+                } else {
+                    // Fall back to fuzzy matching if no substring matches
+                    // Check if the query matches any part of the method name
+                    let mut scored: Vec<(usize, &Method)> = class
+                        .methods
+                        .iter()
+                        .filter_map(|m| {
+                            let name_lower = m.name.to_lowercase();
+
+                            // Check if all characters from query appear in order in the method name
+                            let mut query_chars = query_lower.chars();
+                            let mut current_char = query_chars.next();
+
+                            for name_char in name_lower.chars() {
+                                if let Some(qc) = current_char {
+                                    if qc == name_char {
+                                        current_char = query_chars.next();
+                                    }
+                                }
+                            }
+
+                            // If we matched all query characters in order (subsequence match)
+                            if current_char.is_none() {
+                                Some((0, m))
+                            } else {
+                                // Otherwise try edit distance
+                                let dist = edit_distance(&query_lower, &name_lower);
+                                if dist <= 3 { Some((dist, m)) } else { None }
+                            }
+                        })
+                        .collect();
+                    scored.sort_by_key(|(dist, _)| *dist);
+                    scored.into_iter().map(|(_, m)| m).collect()
+                }
             } else {
                 class.methods.iter().collect()
             };
