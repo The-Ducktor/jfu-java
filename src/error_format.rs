@@ -32,8 +32,6 @@ pub fn format_java_errors(error_text: &str) -> String {
     let lines: Vec<&str> = error_text.lines().collect();
     let mut i = 0;
     let mut error_count = 0;
-    let mut unknown_classes = Vec::new();
-    let mut method_suggestions_map: Vec<(String, String, Vec<(String, String)>)> = Vec::new();
 
     while i < lines.len() {
         let line = lines[i].trim();
@@ -72,10 +70,11 @@ pub fn format_java_errors(error_text: &str) -> String {
                     let code_line = lines[i + 1];
                     let trimmed = code_line.trim();
                     if !trimmed.is_empty() && !trimmed.starts_with("^") {
+                        formatted.push_str("\n");
                         // Preserve leading whitespace for alignment
                         let leading_spaces = code_line.len() - code_line.trim_start().len();
                         let highlighted_code = highlight_java_code(trimmed);
-                        formatted.push_str(&format!("\n  {}\n", highlighted_code));
+                        formatted.push_str(&format!("  {}\n", highlighted_code));
 
                         // Show the caret indicator (line after code) with proper alignment
                         if i + 2 < lines.len() {
@@ -97,8 +96,11 @@ pub fn format_java_errors(error_text: &str) -> String {
                     }
                 }
 
-                // Show additional context lines (symbol, location info)
+                // Show additional context lines (symbol, location info) and collect suggestion data
+                let mut method_name_opt = None;
+                let mut class_name_opt = None;
                 let mut j = i + 3;
+
                 while j < lines.len() && j < i + 10 {
                     let context_line = lines[j].trim();
                     if context_line.is_empty() {
@@ -112,22 +114,6 @@ pub fn format_java_errors(error_text: &str) -> String {
                             context_line.bright_black()
                         ));
 
-                        // Extract unknown class name from "symbol: class ClassName"
-                        if context_line.starts_with("symbol:") && context_line.contains("class ") {
-                            if let Some(class_start) = context_line.find("class ") {
-                                let class_name = &context_line[class_start + 6..]
-                                    .trim()
-                                    .split_whitespace()
-                                    .next()
-                                    .unwrap_or("");
-                                if !class_name.is_empty()
-                                    && class_name.chars().next().unwrap_or('a').is_uppercase()
-                                {
-                                    unknown_classes.push(class_name.to_string());
-                                }
-                            }
-                        }
-
                         // Extract unknown method name from "symbol: method MethodName(...)"
                         if context_line.starts_with("symbol:") && context_line.contains("method ") {
                             if let Some(method_start) = context_line.find("method ") {
@@ -135,117 +121,107 @@ pub fn format_java_errors(error_text: &str) -> String {
                                 // Extract method name (before parenthesis)
                                 let method_name =
                                     method_part.split('(').next().unwrap_or("").trim();
-
                                 if !method_name.is_empty() {
-                                    // Look for "location: ... type ClassName" or "location: class ClassName" in subsequent lines
-                                    let mut k = j + 1;
-                                    while k < lines.len() && k < j + 5 {
-                                        let loc_line = lines[k].trim();
-                                        if loc_line.starts_with("location:") {
-                                            let mut class_name_opt = None;
-
-                                            // Try to find "type ClassName" first
-                                            if let Some(type_start) = loc_line.find("type ") {
-                                                class_name_opt = Some(&loc_line[type_start + 5..]);
-                                            }
-                                            // Fall back to "class ClassName"
-                                            else if let Some(class_start) =
-                                                loc_line.find("class ")
-                                            {
-                                                class_name_opt = Some(&loc_line[class_start + 6..]);
-                                            }
-
-                                            if let Some(class_part) = class_name_opt {
-                                                let class_name = class_part
-                                                    .trim()
-                                                    .split_whitespace()
-                                                    .next()
-                                                    .unwrap_or("");
-
-                                                if !class_name.is_empty() {
-                                                    // Get method suggestions
-                                                    let suggestions =
-                                                        get_method_suggestions_with_signatures(
-                                                            class_name,
-                                                            method_name,
-                                                        );
-
-                                                    if !suggestions.is_empty() {
-                                                        method_suggestions_map.push((
-                                                            class_name.to_string(),
-                                                            method_name.to_string(),
-                                                            suggestions,
-                                                        ));
-                                                    }
-                                                }
-                                            }
-                                            break;
-                                        }
-                                        k += 1;
-                                    }
+                                    method_name_opt = Some(method_name.to_string());
                                 }
                             }
                         }
-                    } else if !context_line.contains(".java:") {
+
+                        // Extract class name from "location: ... type ClassName" or "location: class ClassName"
+                        if context_line.starts_with("location:") {
+                            // Try to find "type ClassName" first
+                            if let Some(type_start) = context_line.find("type ") {
+                                let class_part = &context_line[type_start + 5..];
+                                let class_name =
+                                    class_part.trim().split_whitespace().next().unwrap_or("");
+                                if !class_name.is_empty() {
+                                    class_name_opt = Some(class_name.to_string());
+                                }
+                            }
+                            // Fall back to "class ClassName"
+                            else if let Some(class_start) = context_line.find("class ") {
+                                let class_part = &context_line[class_start + 6..];
+                                let class_name =
+                                    class_part.trim().split_whitespace().next().unwrap_or("");
+                                if !class_name.is_empty() {
+                                    class_name_opt = Some(class_name.to_string());
+                                }
+                            }
+                        }
+                    } else if !context_line.contains(".java:")
+                        && !context_line.ends_with(" error")
+                        && !context_line.ends_with(" errors")
+                    {
+                        // Skip javac's error count summary lines like "2 errors"
                         formatted.push_str(&format!("    {}\n", context_line.bright_black()));
                     } else {
                         break;
                     }
                     j += 1;
                 }
+
+                // Show method suggestions immediately after this error
+                if let (Some(class_name), Some(method_name)) = (class_name_opt, method_name_opt) {
+                    let suggestions =
+                        get_method_suggestions_with_signatures(&class_name, &method_name);
+
+                    if !suggestions.is_empty() {
+                        formatted.push_str("\n");
+                        formatted.push_str(&format!(
+                            "  {} {}\n",
+                            "💡".yellow(),
+                            "Did you mean:".yellow().bold()
+                        ));
+                        formatted.push_str(&format!(
+                            "    {} Instead of {}.{}(), try:\n",
+                            "→".cyan(),
+                            class_name.green(),
+                            method_name.red()
+                        ));
+
+                        for (_method_name, signature) in suggestions.iter().take(3) {
+                            // Syntax highlight the suggestion
+                            let highlighted = highlight_java_code(signature);
+                            formatted.push_str(&format!("      {} {}\n", "•".cyan(), highlighted));
+                        }
+
+                        if suggestions.len() > 3 {
+                            formatted.push_str(&format!(
+                                "      {} ... and {} more overload(s)\n",
+                                "•".bright_black(),
+                                suggestions.len() - 3
+                            ));
+                        }
+                    }
+                }
             }
-        } else if line.contains(" error") && line.ends_with(" error") {
-            // Summary line like "1 error" or "3 errors"
-            formatted.push_str(&format!("\n{}\n", separator(sep_width).yellow()));
-            formatted.push_str(&format!("{} {}\n", "📊".yellow(), line.red().bold()));
         }
 
         i += 1;
     }
 
-    if error_count == 0 {
+    // Show error count summary
+    if error_count > 0 {
+        formatted.push_str(&format!("\n{}\n", separator(sep_width).yellow()));
+        let error_word = if error_count == 1 { "error" } else { "errors" };
+        formatted.push_str(&format!(
+            "{} {} {}\n\n",
+            "📊".yellow(),
+            error_count.to_string().red().bold(),
+            error_word.red().bold()
+        ));
+
+        formatted.push_str(&format!(
+            "{} {}\n",
+            "💡".cyan(),
+            "Fix the errors above and try again.".cyan()
+        ));
+    } else {
         // Fallback if we couldn't parse the error format
         formatted.push_str("\n");
         for line in error_text.lines() {
             formatted.push_str(&format!("  {}\n", line.red()));
         }
-    } else {
-        // Show method suggestions if any were found
-        if !method_suggestions_map.is_empty() {
-            formatted.push_str(&format!("\n{}\n", separator(sep_width).cyan()));
-            formatted.push_str(&format!(
-                "{} {}\n\n",
-                "💡".yellow(),
-                "Did you mean:".yellow().bold()
-            ));
-
-            for (class_name, wrong_method, suggestions) in method_suggestions_map {
-                formatted.push_str(&format!(
-                    "  {} Instead of {}.{}(), try:\n",
-                    "→".cyan(),
-                    class_name.green(),
-                    wrong_method.red()
-                ));
-
-                for (_method_name, signature) in suggestions.iter().take(5) {
-                    formatted.push_str(&format!("    {} {}\n", "•".cyan(), signature.green()));
-                }
-
-                if suggestions.len() > 5 {
-                    formatted.push_str(&format!(
-                        "    {} ... and {} more overload(s)\n",
-                        "•".bright_black(),
-                        suggestions.len() - 5
-                    ));
-                }
-                formatted.push_str("\n");
-            }
-        }
-
-        formatted.push_str(&format!(
-            "{} Fix the errors above and try again.\n",
-            "💡".cyan()
-        ));
     }
 
     formatted
@@ -331,7 +307,7 @@ pub fn format_runtime_errors(error_text: &str) -> String {
     if lines.iter().any(|line| line.contains("Exception")) {
         let mut formatted = String::new();
         formatted.push_str(&format!(
-            "{} {}\n",
+            "\n{} {}\n",
             "💥".red(),
             "Runtime Error".red().bold()
         ));

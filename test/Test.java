@@ -9,6 +9,8 @@ public class Test {
         // This is a comment
         String str = "test string";
         Integer notint = "Stuff";
+        
+        String test = "test".toUppercase(); // wrong captital
         //int y = ; // syntax error: missing expression
     }
 }

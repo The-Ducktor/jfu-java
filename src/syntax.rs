@@ -18,7 +18,7 @@ pub fn highlight_java_code(code: &str) -> String {
     let mut highlighted = String::new();
     for line in LinesWithEndings::from(code) {
         let ranges = h.highlight_line(line, &SYNTAX_SET).unwrap();
-        highlighted.push_str(&syntect::util::as_24_bit_terminal_escaped(&ranges, true));
+        highlighted.push_str(&syntect::util::as_24_bit_terminal_escaped(&ranges, false));
     }
     highlighted
 }
