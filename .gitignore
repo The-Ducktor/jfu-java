@@ -2,4 +2,6 @@
 *.class
 out/
 .jfu/
+# OS files
 .DS_Store
+Thumbs.db
