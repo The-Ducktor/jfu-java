@@ -1,7 +1,7 @@
 use colored::*;
 use terminal_size::{Width, terminal_size};
 
-use crate::search::get_class_suggestions;
+use crate::search::get_method_suggestions_with_signatures;
 use crate::syntax::highlight_java_code;
 
 /// Get the current terminal width, defaulting to 80 if unable to detect
@@ -33,6 +33,7 @@ pub fn format_java_errors(error_text: &str) -> String {
     let mut i = 0;
     let mut error_count = 0;
     let mut unknown_classes = Vec::new();
+    let mut method_suggestions_map: Vec<(String, String, Vec<(String, String)>)> = Vec::new();
 
     while i < lines.len() {
         let line = lines[i].trim();
@@ -126,6 +127,65 @@ pub fn format_java_errors(error_text: &str) -> String {
                                 }
                             }
                         }
+
+                        // Extract unknown method name from "symbol: method MethodName(...)"
+                        if context_line.starts_with("symbol:") && context_line.contains("method ") {
+                            if let Some(method_start) = context_line.find("method ") {
+                                let method_part = &context_line[method_start + 7..].trim();
+                                // Extract method name (before parenthesis)
+                                let method_name =
+                                    method_part.split('(').next().unwrap_or("").trim();
+
+                                if !method_name.is_empty() {
+                                    // Look for "location: ... type ClassName" or "location: class ClassName" in subsequent lines
+                                    let mut k = j + 1;
+                                    while k < lines.len() && k < j + 5 {
+                                        let loc_line = lines[k].trim();
+                                        if loc_line.starts_with("location:") {
+                                            let mut class_name_opt = None;
+
+                                            // Try to find "type ClassName" first
+                                            if let Some(type_start) = loc_line.find("type ") {
+                                                class_name_opt = Some(&loc_line[type_start + 5..]);
+                                            }
+                                            // Fall back to "class ClassName"
+                                            else if let Some(class_start) =
+                                                loc_line.find("class ")
+                                            {
+                                                class_name_opt = Some(&loc_line[class_start + 6..]);
+                                            }
+
+                                            if let Some(class_part) = class_name_opt {
+                                                let class_name = class_part
+                                                    .trim()
+                                                    .split_whitespace()
+                                                    .next()
+                                                    .unwrap_or("");
+
+                                                if !class_name.is_empty() {
+                                                    // Get method suggestions
+                                                    let suggestions =
+                                                        get_method_suggestions_with_signatures(
+                                                            class_name,
+                                                            method_name,
+                                                        );
+
+                                                    if !suggestions.is_empty() {
+                                                        method_suggestions_map.push((
+                                                            class_name.to_string(),
+                                                            method_name.to_string(),
+                                                            suggestions,
+                                                        ));
+                                                    }
+                                                }
+                                            }
+                                            break;
+                                        }
+                                        k += 1;
+                                    }
+                                }
+                            }
+                        }
                     } else if !context_line.contains(".java:") {
                         formatted.push_str(&format!("    {}\n", context_line.bright_black()));
                     } else {
@@ -150,39 +210,42 @@ pub fn format_java_errors(error_text: &str) -> String {
             formatted.push_str(&format!("  {}\n", line.red()));
         }
     } else {
-        formatted.push_str(&format!(
-            "\n{} Fix the errors above and try again.\n",
-            "💡".cyan()
-        ));
-    }
+        // Show method suggestions if any were found
+        if !method_suggestions_map.is_empty() {
+            formatted.push_str(&format!("\n{}\n", separator(sep_width).cyan()));
+            formatted.push_str(&format!(
+                "{} {}\n\n",
+                "💡".yellow(),
+                "Did you mean:".yellow().bold()
+            ));
 
-    // Provide suggestions for unknown classes
-    if !unknown_classes.is_empty() {
-        formatted.push_str(&format!(
-            "\n{} {}\n",
-            "💡".yellow(),
-            "Did you mean:".yellow().bold()
-        ));
-
-        for class_name in unknown_classes.iter().take(3) {
-            let suggestions = get_class_suggestions(class_name);
-            if !suggestions.is_empty() {
+            for (class_name, wrong_method, suggestions) in method_suggestions_map {
                 formatted.push_str(&format!(
-                    "\n  {} {} {}\n",
-                    "❓".yellow(),
-                    format!("Unknown class '{}'", class_name).red(),
-                    "- Try:".cyan()
+                    "  {} Instead of {}.{}(), try:\n",
+                    "→".cyan(),
+                    class_name.green(),
+                    wrong_method.red()
                 ));
-                for suggestion in suggestions.iter().take(3) {
-                    formatted.push_str(&format!("     {} {}\n", "→".green(), suggestion.green()));
+
+                for (_method_name, signature) in suggestions.iter().take(5) {
+                    formatted.push_str(&format!("    {} {}\n", "•".cyan(), signature.green()));
                 }
-                formatted.push_str(&format!(
-                    "\n     {} Use 'jfu search {}' for more info\n",
-                    "🔍".cyan(),
-                    class_name.cyan()
-                ));
+
+                if suggestions.len() > 5 {
+                    formatted.push_str(&format!(
+                        "    {} ... and {} more overload(s)\n",
+                        "•".bright_black(),
+                        suggestions.len() - 5
+                    ));
+                }
+                formatted.push_str("\n");
             }
         }
+
+        formatted.push_str(&format!(
+            "{} Fix the errors above and try again.\n",
+            "💡".cyan()
+        ));
     }
 
     formatted

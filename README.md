@@ -132,7 +132,7 @@ This helps catch missing dependencies early and keeps your code explicit.
 4. Only recompiles the changed ones
 5. Runs `javac` and `java` for you
 
-It caches everything in `jfu-cache.json` so the second build is instant. ⚡
+It caches everything in `.jfu/cache/` so the second build is instant. ⚡
 
 ## What It Doesn't Do
 

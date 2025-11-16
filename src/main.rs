@@ -5,6 +5,7 @@ mod build;
 mod cache;
 mod clean;
 mod config;
+mod docs;
 mod error_format;
 mod graph;
 mod init;

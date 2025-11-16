@@ -14,7 +14,10 @@ syntect = "5"
 toml = "0.9"
 terminal_size = "0.4.3"
 regex = "1.10"
-java-docs-parser = { path = "/Users/jacks/Documents/Dev/Git/Rust-Learn/java-docs-parser" }
+flate2 = "1.0"
+
+[build-dependencies]
+flate2 = "1.0"
 
 [profile.release]
 opt-level = 3
