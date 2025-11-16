@@ -10,7 +10,7 @@ public class Test {
         String str = "test string";
         Integer notint = "Stuff";
         
-        String test = "test".toUppercase(); // wrong captital
+        String test = "test".toUppercae(); // wrong captital
         //int y = ; // syntax error: missing expression
     }
 }

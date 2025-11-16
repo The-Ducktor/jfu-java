@@ -1,6 +1,9 @@
 //! Search functionality for Java API documentation using embedded docs
 
-use crate::docs::{Class, Method, Package, get_docs};
+use crate::{
+    docs::{Class, Method, Package, get_docs},
+    syntax::highlight_java_code,
+};
 use colored::*;
 use std::io::{self, Write};
 
@@ -289,7 +292,7 @@ fn display_method(method: &Method, show_descriptions: bool) {
         println!(
             "{}{}{}",
             prefix.cyan(),
-            overload.signature.green(),
+            highlight_java_code(&overload.signature),
             deprecated_marker
         );
 
