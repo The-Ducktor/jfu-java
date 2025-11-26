@@ -2,6 +2,7 @@
 
 use crate::{
     docs::{Class, Method, Package, get_docs},
+    fuzzy::smart_match_methods,
     syntax::highlight_java_code,
 };
 use colored::*;
@@ -56,51 +57,8 @@ pub fn search_methods(class_name: &str, method_query: Option<&str>) -> Result<()
             );
 
             let methods: Vec<&Method> = if let Some(query) = method_query {
-                let query_lower = query.to_lowercase().replace(" ", "");
-
-                // First try exact substring matches
-                let substring_matches: Vec<&Method> = class
-                    .methods
-                    .iter()
-                    .filter(|m| m.name.to_lowercase().contains(&query_lower))
-                    .collect();
-
-                if !substring_matches.is_empty() {
-                    substring_matches
-                } else {
-                    // Fall back to fuzzy matching if no substring matches
-                    // Check if the query matches any part of the method name
-                    let mut scored: Vec<(usize, &Method)> = class
-                        .methods
-                        .iter()
-                        .filter_map(|m| {
-                            let name_lower = m.name.to_lowercase();
-
-                            // Check if all characters from query appear in order in the method name
-                            let mut query_chars = query_lower.chars();
-                            let mut current_char = query_chars.next();
-
-                            for name_char in name_lower.chars() {
-                                if let Some(qc) = current_char {
-                                    if qc == name_char {
-                                        current_char = query_chars.next();
-                                    }
-                                }
-                            }
-
-                            // If we matched all query characters in order (subsequence match)
-                            if current_char.is_none() {
-                                Some((0, m))
-                            } else {
-                                // Otherwise try edit distance
-                                let dist = edit_distance(&query_lower, &name_lower);
-                                if dist <= 3 { Some((dist, m)) } else { None }
-                            }
-                        })
-                        .collect();
-                    scored.sort_by_key(|(dist, _)| *dist);
-                    scored.into_iter().map(|(_, m)| m).collect()
-                }
+                // Use the consolidated fuzzy matching logic
+                smart_match_methods(query, &class.methods)
             } else {
                 class.methods.iter().collect()
             };
@@ -408,39 +366,6 @@ pub fn get_class_suggestions(class_name: &str) -> Vec<String> {
     results.iter().take(5).map(|(fqn, _)| fqn.clone()).collect()
 }
 
-/// Calculate simple edit distance between two strings (Levenshtein distance)
-fn edit_distance(s1: &str, s2: &str) -> usize {
-    let len1 = s1.chars().count();
-    let len2 = s2.chars().count();
-    let mut matrix = vec![vec![0; len2 + 1]; len1 + 1];
-
-    for i in 0..=len1 {
-        matrix[i][0] = i;
-    }
-    for j in 0..=len2 {
-        matrix[0][j] = j;
-    }
-
-    let s1_chars: Vec<char> = s1.chars().collect();
-    let s2_chars: Vec<char> = s2.chars().collect();
-
-    for i in 1..=len1 {
-        for j in 1..=len2 {
-            let cost = if s1_chars[i - 1] == s2_chars[j - 1] {
-                0
-            } else {
-                1
-            };
-            matrix[i][j] = std::cmp::min(
-                std::cmp::min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1),
-                matrix[i - 1][j - 1] + cost,
-            );
-        }
-    }
-
-    matrix[len1][len2]
-}
-
 /// Get suggestions for a method name in a specific class (case-insensitive)
 /// Returns list of suggested method names
 pub fn get_method_suggestions(class_name: &str, method_name: &str) -> Vec<String> {
@@ -454,40 +379,9 @@ pub fn get_method_suggestions(class_name: &str, method_name: &str) -> Vec<String
     }
 
     let class = class.unwrap();
-    let method_lower = method_name.to_lowercase();
 
-    // Find methods that match case-insensitively
-    let mut suggestions: Vec<String> = class
-        .methods
-        .iter()
-        .filter(|m| m.name.to_lowercase() == method_lower && m.name != method_name)
-        .map(|m| m.name.clone())
-        .collect();
-
-    // If no exact case-insensitive match, find similar methods using fuzzy matching
-    if suggestions.is_empty() {
-        let mut scored_methods: Vec<(usize, &str)> = class
-            .methods
-            .iter()
-            .map(|m| {
-                let name_lower = m.name.to_lowercase();
-                let distance = edit_distance(&method_lower, &name_lower);
-                (distance, m.name.as_str())
-            })
-            .filter(|(dist, _)| *dist <= 2) // Only suggest if edit distance <= 2
-            .collect();
-
-        // Sort by distance (closest first)
-        scored_methods.sort_by_key(|(dist, _)| *dist);
-
-        suggestions = scored_methods
-            .into_iter()
-            .map(|(_, name)| name.to_string())
-            .take(5)
-            .collect();
-    }
-
-    suggestions
+    // Use the consolidated fuzzy matching logic
+    crate::fuzzy::get_method_suggestions(method_name, &class.methods)
 }
 
 /// Get detailed method suggestions with signature info
@@ -505,47 +399,7 @@ pub fn get_method_suggestions_with_signatures(
     }
 
     let class = class.unwrap();
-    let method_lower = method_name.to_lowercase();
 
-    // Find methods that match case-insensitively
-    let matching_methods: Vec<_> = class
-        .methods
-        .iter()
-        .filter(|m| m.name.to_lowercase() == method_lower && m.name != method_name)
-        .collect();
-
-    let mut suggestions: Vec<(String, String)> = Vec::new();
-
-    if !matching_methods.is_empty() {
-        // Add all overloads for exact case-insensitive matches
-        for method in matching_methods {
-            for overload in &method.overloads {
-                suggestions.push((method.name.clone(), overload.signature.clone()));
-            }
-        }
-    } else {
-        // If no exact case-insensitive match, find similar methods using fuzzy matching
-        let mut scored_methods: Vec<(usize, &Method)> = class
-            .methods
-            .iter()
-            .map(|m| {
-                let name_lower = m.name.to_lowercase();
-                let distance = edit_distance(&method_lower, &name_lower);
-                (distance, m)
-            })
-            .filter(|(dist, _)| *dist <= 2) // Only suggest if edit distance <= 2
-            .collect();
-
-        // Sort by distance (closest first)
-        scored_methods.sort_by_key(|(dist, _)| *dist);
-
-        for (_, method) in scored_methods.into_iter().take(3) {
-            // Show up to 2 overloads per similar method
-            for overload in method.overloads.iter().take(2) {
-                suggestions.push((method.name.clone(), overload.signature.clone()));
-            }
-        }
-    }
-
-    suggestions
+    // Use the consolidated fuzzy matching logic
+    crate::fuzzy::get_method_suggestions_with_signatures(method_name, &class.methods, 3)
 }

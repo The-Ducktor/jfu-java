@@ -129,9 +129,13 @@ impl DocsIndex {
     }
 
     /// Search for classes by partial name match
+    /// Uses fuzzy matching to find the best matches
     pub fn search_classes(&self, query: &str) -> Vec<(String, &Class)> {
         let query_lower = query.to_lowercase();
-        self.classes
+
+        // First try substring matching (fastest and most relevant)
+        let substring_matches: Vec<(String, &Class)> = self
+            .classes
             .iter()
             .filter(|(name, _)| name.to_lowercase().contains(&query_lower))
             .map(|(name, (pkg_idx, cls_idx))| {
@@ -139,6 +143,25 @@ impl DocsIndex {
                     name.clone(),
                     &self.docs.packages[*pkg_idx].classes[*cls_idx],
                 )
+            })
+            .collect();
+
+        if !substring_matches.is_empty() {
+            return substring_matches;
+        }
+
+        // Fall back to fuzzy matching
+        use crate::fuzzy::fuzzy_match_classes;
+        let class_names = self.classes.keys().map(|s| s.as_str());
+        let scored = fuzzy_match_classes(query, class_names);
+
+        scored
+            .into_iter()
+            .take(20) // Limit results
+            .filter_map(|(name, _score)| {
+                self.classes.get(&name).map(|(pkg_idx, cls_idx)| {
+                    (name, &self.docs.packages[*pkg_idx].classes[*cls_idx])
+                })
             })
             .collect()
     }

@@ -28,4 +28,4 @@ mod embedded;
 mod types;
 
 pub use embedded::{get_docs, init_docs};
-pub use types::{Class, Method, Package};
+pub use types::{Class, Method, Overload, Package};

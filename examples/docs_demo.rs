@@ -21,11 +21,6 @@ fn main() {
     }
     println!();
 
-    // Example 2: Look up a class with package info
-    println!("2️⃣  Looking up 'ArrayList' with package info:");
-    if let Some((package, class)) = docs.get_class_with_package("ArrayList") {
-        println!("   ✓ Package: {}", package.package);
-        println!("   ✓ Class: {}", class.name);
         println!("   ✓ Package description: {}", package.description);
     }
     println!();
@@ -74,10 +69,6 @@ fn main() {
     }
     println!();
 
-    // Example 6: Get all classes in a package
-    println!("6️⃣  Listing classes in 'java.util' package:");
-    if let Some(package) = docs.get_package("java.util") {
-        println!("   ✓ Package: {}", package.package);
         println!("   ✓ Description: {}", package.description);
         println!("   ✓ Classes: {}", package.classes.len());
         for class in package.classes.iter().take(5) {
@@ -95,12 +86,7 @@ fn main() {
         for (i, overload) in method.overloads.iter().enumerate() {
             println!("   Overload {}:", i + 1);
             println!("   Signature: {}", overload.signature);
-            if !overload.description.is_empty() {
-                println!("   Description:");
-                for line in overload.description.lines() {
-                    let trimmed = line.trim();
-                    if !trimmed.is_empty() {
-                        println!("      {}", trimmed);
+            
                     }
                 }
             }

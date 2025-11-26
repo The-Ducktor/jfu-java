@@ -7,6 +7,7 @@ mod clean;
 mod config;
 mod docs;
 mod error_format;
+mod fuzzy;
 mod graph;
 mod init;
 mod run;
