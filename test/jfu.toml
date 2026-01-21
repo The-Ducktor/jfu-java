@@ -1,0 +1,23 @@
+# Example jfu configuration file
+
+# Source directory containing Java files
+src_dir = "."
+
+# Output directory for compiled .class files
+out_dir = "./out"
+
+# Default entry point (class to run if none specified)
+# entrypoint = "Main"
+
+# JVM options passed to `java` command
+jvm_opts = []
+
+# Automatically include implicit dependencies from same directory
+auto_include_implicit_deps = false
+
+# External JAR files to include on the classpath
+# Supports glob patterns including ** for recursive matching
+classpath = [
+    # "libs/*.jar",           # All JARs in libs/ directory
+    # "vendor/**/lib*.jar",   # Recursive: all lib*.jar in vendor/ and subdirs
+]
