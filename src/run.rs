@@ -1,49 +1,97 @@
 use colored::*;
-use std::process::Command;
+use std::io::{self, Read, Write};
+use std::process::{Command, Stdio};
+use std::sync::mpsc;
+use std::thread;
 
 use crate::build::{BuildContext, build_files};
 use crate::error_format::format_runtime_errors;
 
+/// Run a compiled Java class while preserving TTY behaviour for stdout/stderr.
+/// This function:
+/// - inherits stdin and stdout so the child sees the real terminal (fixes Scanner/TTY issues)
+/// - pipes stderr so we can both stream it live and capture it for pretty formatting
 pub fn run_file(ctx: &BuildContext, main_file: &str) -> Result<(), String> {
-    // First, build
+    // Build first
     build_files(ctx, main_file)?;
 
-    // Extract class name (Main.java -> Main)
+    // Determine class name from file (strip .java)
     let class_name = main_file
         .strip_suffix(".java")
         .ok_or_else(|| format!("Invalid Java file: {}", main_file))?;
 
     println!("     {} `java {}`", "Running".green().bold(), class_name);
 
-    // Run the Java program with optional JVM opts
+    // Configure command
     let mut cmd = Command::new("java");
     cmd.arg("-cp").arg(&ctx.config.out_dir);
 
-    // Add JVM options if specified
     for opt in &ctx.config.jvm_opts {
         cmd.arg(opt);
     }
 
     cmd.arg(class_name);
 
-    let output = cmd
-        .output()
+    // Important: inherit stdin and stdout to preserve TTY behaviour for interactive programs.
+    // Only pipe stderr so we can capture/format it.
+    let mut child = cmd
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::piped())
+        .spawn()
         .map_err(|e| format!("Failed to run java: {}", e))?;
 
-    // Print stdout
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    print!("{}", stdout);
+    // If stderr was piped, stream it live and also accumulate for formatted output later.
+    let (tx, rx) = mpsc::channel();
+    if let Some(mut stderr_handle) = child.stderr.take() {
+        let tx = tx.clone();
+        thread::spawn(move || {
+            let mut buf = [0u8; 8192];
+            let mut accumulated: Vec<u8> = Vec::new();
+            let mut err_out = io::stderr();
 
-    // Print stderr if any
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    if !stderr.is_empty() {
-        eprintln!("\n{}", format_runtime_errors(&stderr));
+            loop {
+                match stderr_handle.read(&mut buf) {
+                    Ok(0) => break, // EOF
+                    Ok(n) => {
+                        // write raw bytes to parent's stderr immediately
+                        let _ = err_out.write_all(&buf[..n]);
+                        let _ = err_out.flush();
+
+                        // accumulate for formatted output later
+                        accumulated.extend_from_slice(&buf[..n]);
+                    }
+                    Err(_) => break,
+                }
+            }
+
+            // Convert accumulated bytes to String (lossy) and send back
+            let s = String::from_utf8_lossy(&accumulated).into_owned();
+            let _ = tx.send(s);
+        });
     }
 
-    if !output.status.success() {
+    // Wait for the child process to exit
+    let status = child
+        .wait()
+        .map_err(|e| format!("Failed to wait for child process: {}", e))?;
+
+    // Receive accumulated stderr (if any)
+    let stderr_content = match rx.recv() {
+        Ok(s) => s,
+        Err(_) => String::new(),
+    };
+
+    // If there was any stderr output, show the formatted version as well.
+    // This duplicates the raw stderr already printed live, but provides the pretty/structured output.
+    if !stderr_content.is_empty() {
+        eprintln!("\n{}", format_runtime_errors(&stderr_content));
+    }
+
+    if !status.success() {
         return Err(format!(
             "Program exited with status code: {}",
-            output.status.code().unwrap_or(-1)
+            status.code().unwrap_or(-1)
         ));
     }
 

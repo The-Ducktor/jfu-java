@@ -1,6 +1,4 @@
-# jfu Live Demo
 
-This document shows a complete demo of all jfu features.
 
 ## Setup
 
@@ -121,11 +119,3 @@ time jfu build  # Second time: instant! ⚡
 ```
 
 ## Summary
-
-jfu provides:
-- ✅ Intelligent incremental compilation
-- ✅ Automatic dependency resolution
-- ✅ Beautiful colored output
-- ✅ Simple configuration
-- ✅ Multiple entry points support
-- ✅ Professional CLI interface

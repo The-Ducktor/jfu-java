@@ -16,6 +16,7 @@ terminal_size = "0.4.3"
 regex = "1.10"
 flate2 = "1"
 nucleo-matcher = "0.3"
+atty = "0.2"
 
 [build-dependencies]
 flate2 = "1"
