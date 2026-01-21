@@ -17,10 +17,17 @@ pub fn run_file(ctx: &BuildContext, main_file: &str) -> Result<(), String> {
     // Build first
     build_files(ctx, main_file)?;
 
-    // Determine class name from file (strip .java)
-    let class_name = main_file
+    // Determine class name from file (strip .java and path)
+    let base_name = main_file
         .strip_suffix(".java")
         .ok_or_else(|| format!("Invalid Java file: {}", main_file))?;
+
+    // Extract just the filename without directory path
+    let class_name = base_name
+        .split('/')
+        .last()
+        .or_else(|| base_name.split('\\').last())
+        .unwrap_or(base_name);
 
     println!("     {} `java {}`", "Running".green().bold(), class_name);
 
