@@ -400,29 +400,16 @@ fn extract_code_context(stack_line: &str) -> Option<String> {
                 let line_num_str = &file_info[colon_pos + 1..];
 
                 if let Ok(line_num) = line_num_str.parse::<usize>() {
-                    // Try to read the file
-                    if let Ok(content) = std::fs::read_to_string(file_name) {
-                        if let Some(code_line) = content.lines().nth(line_num - 1) {
-                            let trimmed = code_line.trim();
-                            if !trimmed.is_empty() {
-                                let highlighted = highlight_java_code(trimmed);
-                                return Some(format!("    {} {}", "┃".cyan(), highlighted));
-                            }
-                        }
-                    } else {
-                        // Try to find it in src_dir
-                        if let Ok(content) = std::fs::read_to_string(format!("./src/{}", file_name))
-                        {
-                            if let Some(code_line) = content.lines().nth(line_num - 1) {
-                                let trimmed = code_line.trim();
-                                if !trimmed.is_empty() {
-                                    let highlighted = highlight_java_code(trimmed);
-                                    return Some(format!("    {} {}", "┃".cyan(), highlighted));
-                                }
-                            }
-                        } else if let Ok(content) =
-                            std::fs::read_to_string(format!("./{}", file_name))
-                        {
+                    // List of paths to try in order
+                    let paths_to_try = vec![
+                        file_name.to_string(),           // Direct path
+                        format!("./src/{}", file_name),  // src/ directory
+                        format!("./test/{}", file_name), // test/ directory
+                        format!("./{}", file_name),      // Current directory with ./
+                    ];
+
+                    for path in paths_to_try {
+                        if let Ok(content) = std::fs::read_to_string(&path) {
                             if let Some(code_line) = content.lines().nth(line_num - 1) {
                                 let trimmed = code_line.trim();
                                 if !trimmed.is_empty() {
