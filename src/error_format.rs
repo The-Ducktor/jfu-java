@@ -313,12 +313,32 @@ pub fn format_runtime_errors(error_text: &str) -> String {
         ));
         formatted.push_str(&format!("{}\n", separator(sep_width).red()));
 
-        for (i, line) in lines.iter().enumerate() {
-            let trimmed = line.trim();
+        let mut first_exception = true;
+        let mut i = 0;
+
+        while i < lines.len() {
+            let trimmed = lines[i].trim();
 
             // Exception type line
-            if trimmed.contains("Exception") && i == 0 {
+            if trimmed.contains("Exception") && (i == 0 || first_exception) {
                 formatted.push_str(&format!("\n  {} {}\n", "🔥".yellow(), trimmed.red().bold()));
+                first_exception = false;
+
+                // Try to extract code context from the next stack frame
+                if i + 1 < lines.len() {
+                    let next_line = lines[i + 1].trim();
+                    if next_line.starts_with("at ") && next_line.contains(".java:") {
+                        if let Some(code_context) = extract_code_context(next_line) {
+                            formatted.push_str(&format!(
+                                "\n  {} {}\n",
+                                "📝".cyan(),
+                                "Code context:".cyan().bold()
+                            ));
+                            formatted.push_str(&code_context);
+                            formatted.push_str("\n");
+                        }
+                    }
+                }
             }
             // Stack trace lines
             else if trimmed.starts_with("at ") {
@@ -336,11 +356,14 @@ pub fn format_runtime_errors(error_text: &str) -> String {
             // Caused by
             else if trimmed.starts_with("Caused by:") {
                 formatted.push_str(&format!("\n  {} {}\n", "↳".yellow(), trimmed.yellow()));
+                first_exception = true;
             }
             // Other lines
             else if !trimmed.is_empty() {
                 formatted.push_str(&format!("  {}\n", trimmed.red()));
             }
+
+            i += 1;
         }
 
         formatted.push_str(&format!("\n{}\n", separator(sep_width).red()));
@@ -359,4 +382,60 @@ pub fn format_runtime_errors(error_text: &str) -> String {
             error_text.red()
         )
     }
+}
+
+/// Extract file name and line number from a stack trace line and try to read the source code.
+///
+/// A stack trace line looks like: `at MyClass.methodName(MyClass.java:42)`
+/// This function extracts "MyClass.java" and line 42, then tries to read and display
+/// the actual code that threw the exception.
+fn extract_code_context(stack_line: &str) -> Option<String> {
+    // Parse line like: "at MyClass.methodName(MyClass.java:42)"
+    if let Some(paren_start) = stack_line.find('(') {
+        if let Some(paren_end) = stack_line.find(')') {
+            let file_info = &stack_line[paren_start + 1..paren_end];
+
+            if let Some(colon_pos) = file_info.rfind(':') {
+                let file_name = &file_info[..colon_pos];
+                let line_num_str = &file_info[colon_pos + 1..];
+
+                if let Ok(line_num) = line_num_str.parse::<usize>() {
+                    // Try to read the file
+                    if let Ok(content) = std::fs::read_to_string(file_name) {
+                        if let Some(code_line) = content.lines().nth(line_num - 1) {
+                            let trimmed = code_line.trim();
+                            if !trimmed.is_empty() {
+                                let highlighted = highlight_java_code(trimmed);
+                                return Some(format!("    {} {}", "┃".cyan(), highlighted));
+                            }
+                        }
+                    } else {
+                        // Try to find it in src_dir
+                        if let Ok(content) = std::fs::read_to_string(format!("./src/{}", file_name))
+                        {
+                            if let Some(code_line) = content.lines().nth(line_num - 1) {
+                                let trimmed = code_line.trim();
+                                if !trimmed.is_empty() {
+                                    let highlighted = highlight_java_code(trimmed);
+                                    return Some(format!("    {} {}", "┃".cyan(), highlighted));
+                                }
+                            }
+                        } else if let Ok(content) =
+                            std::fs::read_to_string(format!("./{}", file_name))
+                        {
+                            if let Some(code_line) = content.lines().nth(line_num - 1) {
+                                let trimmed = code_line.trim();
+                                if !trimmed.is_empty() {
+                                    let highlighted = highlight_java_code(trimmed);
+                                    return Some(format!("    {} {}", "┃".cyan(), highlighted));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    None
 }

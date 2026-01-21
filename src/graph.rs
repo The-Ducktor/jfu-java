@@ -1,10 +1,39 @@
+//! Dependency graph building and topological sorting for Java projects.
+//!
+//! This module:
+//! - Parses `/* using "..." */` dependency declarations
+//! - Detects implicit dependencies (public types referenced but not declared)
+//! - Builds a dependency graph from source files
+//! - Performs topological sort to determine compilation order
+//! - Detects circular dependencies
+
 use colored::*;
+use lazy_static::lazy_static;
 use regex::Regex;
 use std::{
     collections::{HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
 };
+
+// Pre-compile regex patterns for better performance
+lazy_static! {
+    /// Matches public type declarations (class, interface, enum, record)
+    /// Pattern: `public [abstract] class|interface|enum|record ClassName`
+    static ref PUBLIC_TYPE_REGEX: Regex =
+        Regex::new(r"(?m)^\s*public\s+(?:abstract\s+)?(?:class|interface|enum|record)\s+(\w+)")
+            .unwrap();
+
+    /// Matches class declarations in any visibility level
+    /// Used to extract the current file's class name
+    static ref CLASS_DECL_REGEX: Regex =
+        Regex::new(r"(?m)^\s*(?:public\s+)?(?:abstract\s+)?(?:class|interface|enum|record)\s+(\w+)")
+            .unwrap();
+
+    /// Matches class references (capitalized identifiers)
+    /// Used to find implicit dependencies
+    static ref CLASS_REF_REGEX: Regex = Regex::new(r"\b([A-Z][a-zA-Z0-9_]*)\b").unwrap();
+}
 
 #[derive(Debug, Clone)]
 pub struct Node {
@@ -45,14 +74,7 @@ fn find_public_classes_in_dir(file_path: &Path) -> Vec<String> {
 
         // Read the file and check if it has a public type
         if let Ok(content) = fs::read_to_string(&path) {
-            // Look for public type declarations (class, interface, enum, record, abstract class)
-            // Matches: public class, public interface, public enum, public record, public abstract class
-            let type_regex = Regex::new(
-                r"(?m)^\s*public\s+(?:abstract\s+)?(?:class|interface|enum|record)\s+(\w+)",
-            )
-            .unwrap();
-
-            for cap in type_regex.captures_iter(&content) {
+            for cap in PUBLIC_TYPE_REGEX.captures_iter(&content) {
                 if let Some(class_name) = cap.get(1) {
                     let name = class_name.as_str().to_string();
                     classes.push(name);
@@ -83,12 +105,7 @@ fn find_class_references(path: &Path, declared_deps: &[String]) -> Vec<String> {
         .collect();
 
     // Extract the current file's type name to exclude it from references
-    // Matches: class, interface, enum, record (with or without public/abstract modifiers)
-    let class_decl_regex = Regex::new(
-        r"(?m)^\s*(?:public\s+)?(?:abstract\s+)?(?:class|interface|enum|record)\s+(\w+)",
-    )
-    .unwrap();
-    if let Some(cap) = class_decl_regex.captures(&content) {
+    if let Some(cap) = CLASS_DECL_REGEX.captures(&content) {
         if let Some(class_name) = cap.get(1) {
             current_class_name = Some(class_name.as_str().to_string());
         }
@@ -131,9 +148,7 @@ fn find_class_references(path: &Path, declared_deps: &[String]) -> Vec<String> {
 
         // Look for class instantiations and references using regex
         // Matches patterns like: new ClassName(), ClassName variable, ClassName.method()
-        let class_ref_regex = Regex::new(r"\b([A-Z][a-zA-Z0-9_]*)\b").unwrap();
-
-        for cap in class_ref_regex.captures_iter(line) {
+        for cap in CLASS_REF_REGEX.captures_iter(line) {
             if let Some(class_name) = cap.get(1) {
                 let name = class_name.as_str().to_string();
 

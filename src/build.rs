@@ -1,18 +1,52 @@
+//! Build orchestration for Java files with incremental compilation.
+//!
+//! This module handles the core build process:
+//! 1. Resolving the main file path
+//! 2. Building a dependency graph from `/* using "..." */` comments
+//! 3. Topologically sorting files to determine compilation order
+//! 4. Checking the cache to skip unchanged files
+//! 5. Running javac on files that need recompilation
+//! 6. Updating the cache with new file hashes
+
 use colored::*;
 use std::{fs, path::Path, process::Command};
 
 use crate::cache::{CacheEntry, compute_hash, load_cache, needs_rebuild, save_cache};
+use crate::classpath::{build_classpath_string, resolve_classpath};
 use crate::config::Config;
 use crate::error_format::format_java_errors;
 use crate::graph::{build_dependency_graph, topo_sort};
 
+/// Build context containing configuration, verbose flag, and force rebuild flag.
+///
+/// This is passed to the build process to control compilation behavior.
 #[derive(Debug)]
 pub struct BuildContext {
+    /// Project configuration (paths, JVM options, etc.)
     pub config: Config,
+    /// If true, print detailed build information
     pub verbose: bool,
+    /// If true, rebuild all files regardless of cache status
     pub force: bool,
 }
 
+/// Build a Java file and all its dependencies with incremental compilation.
+///
+/// This function:
+/// - Locates the main Java file in the current directory or configured source directory
+/// - Extracts dependencies from `/* using "..." */` comments
+/// - Builds a dependency graph and topologically sorts files
+/// - Skips unchanged files using xxHash64 hashing
+/// - Resolves classpath globs to find external JARs
+/// - Invokes javac with proper classpath and error formatting
+/// - Updates the build cache with new file hashes
+///
+/// # Arguments
+/// * `ctx` - Build context with configuration and flags
+/// * `main_file` - Name of the main Java file (e.g., "Main.java")
+///
+/// # Errors
+/// Returns an error if the file is not found, compilation fails, or cache operations fail.
 pub fn build_files(ctx: &BuildContext, main_file: &str) -> Result<(), String> {
     // First try the current directory, then fall back to src_dir
     let main_path = if Path::new(main_file).exists() {
@@ -89,9 +123,26 @@ pub fn build_files(ctx: &BuildContext, main_file: &str) -> Result<(), String> {
         files_to_compile.len()
     );
 
+    // Resolve classpath from glob patterns and build the classpath string
+    let resolved_jars = resolve_classpath(&ctx.config.classpath);
+    let classpath = build_classpath_string(&resolved_jars, &ctx.config.out_dir);
+
+    if ctx.verbose && !resolved_jars.is_empty() {
+        println!(
+            "{} Resolved {} JAR file(s)",
+            "📦".cyan(),
+            resolved_jars.len()
+        );
+    }
+
     // Build javac command with all files
     let mut cmd = Command::new("javac");
     cmd.arg("-d").arg(&ctx.config.out_dir);
+
+    // Add classpath if there are JARs or we need to include the output directory
+    if !resolved_jars.is_empty() || !ctx.config.classpath.is_empty() {
+        cmd.arg("-cp").arg(&classpath);
+    }
 
     for node in &files_to_compile {
         cmd.arg(&node.path);

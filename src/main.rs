@@ -1,8 +1,37 @@
+//! # jfu - A Fast, Incremental Build Tool for Java
+//!
+//! jfu (Java Fast Utility) is designed for small Java projects where full build systems like Maven
+//! or Gradle would be overkill. It provides:
+//!
+//! - **Incremental compilation**: Only recompiles files that have changed
+//! - **Dependency management**: Automatically builds files in the correct order
+//! - **Beautiful error messages**: Makes Java compilation errors less intimidating
+//! - **Fast rebuilds**: Second builds are nearly instant thanks to smart caching
+//!
+//! ## Usage
+//!
+//! Add dependency declarations at the top of your Java files:
+//!
+//! ```java
+//! /* using "Helper.java" */
+//! ```
+//!
+//! Then run:
+//! ```bash
+//! jfu run Main.java
+//! ```
+//!
+//! ## Note
+//!
+//! This is designed for university assignments, coding practice, and small projects.
+//! For production use, please use Maven or Gradle.
+
 use clap::{Parser, Subcommand};
 use colored::*;
 
 mod build;
 mod cache;
+mod classpath;
 mod clean;
 mod config;
 mod docs;
@@ -28,6 +57,7 @@ use tree::show_tree;
 // CLI Definition
 // ============================================================================
 
+/// jfu CLI command structure with global flags
 #[derive(Parser)]
 #[command(name = "jfu")]
 #[command(about = "A fast, incremental build tool for Java", long_about = None)]
@@ -35,15 +65,15 @@ struct Cli {
     #[command(subcommand)]
     command: Commands,
 
-    /// Enable verbose output
+    /// Enable verbose output for debugging
     #[arg(short, long, global = true)]
     verbose: bool,
 
-    /// Force rebuild (ignore cache)
+    /// Force rebuild, ignoring the cache
     #[arg(short, long, global = true)]
     force: bool,
 
-    /// Automatically include implicit dependencies in compilation
+    /// Automatically include all public classes in the same directory as implicit dependencies
     #[arg(long, global = true)]
     auto_implicit: bool,
 }

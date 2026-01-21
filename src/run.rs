@@ -5,12 +5,14 @@ use std::sync::mpsc;
 use std::thread;
 
 use crate::build::{BuildContext, build_files};
+use crate::classpath::{build_classpath_string, resolve_classpath};
 use crate::error_format::format_runtime_errors;
 
 /// Run a compiled Java class while preserving TTY behaviour for stdout/stderr.
 /// This function:
 /// - inherits stdin and stdout so the child sees the real terminal (fixes Scanner/TTY issues)
 /// - pipes stderr so we can both stream it live and capture it for pretty formatting
+/// - resolves and applies the classpath for external JAR files
 pub fn run_file(ctx: &BuildContext, main_file: &str) -> Result<(), String> {
     // Build first
     build_files(ctx, main_file)?;
@@ -22,9 +24,20 @@ pub fn run_file(ctx: &BuildContext, main_file: &str) -> Result<(), String> {
 
     println!("     {} `java {}`", "Running".green().bold(), class_name);
 
+    // Resolve classpath from glob patterns and build the classpath string
+    let resolved_jars = resolve_classpath(&ctx.config.classpath);
+    let classpath = build_classpath_string(&resolved_jars, &ctx.config.out_dir);
+
     // Configure command
     let mut cmd = Command::new("java");
-    cmd.arg("-cp").arg(&ctx.config.out_dir);
+
+    // Add classpath if there are JARs or we need to include the output directory
+    if !resolved_jars.is_empty() || !ctx.config.classpath.is_empty() {
+        cmd.arg("-cp").arg(&classpath);
+    } else {
+        // Always include output directory even without external JARs
+        cmd.arg("-cp").arg(&ctx.config.out_dir);
+    }
 
     for opt in &ctx.config.jvm_opts {
         cmd.arg(opt);
