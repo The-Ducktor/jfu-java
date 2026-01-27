@@ -31,3 +31,33 @@ Choose an option: ⏎
 ~/Downloads/formative-assessment
 ❯
 ```
+
+
+add a framework for adding rules of detection for common problems
+like when there is a semicolor but no space infront or behind it could mean a forggoton "." for a method
+
+eg 
+```bash
+jfu run Main.java
+   Compiling 1 file(s)
+
+❌
+💥 Compilation Failed
+
+Error #1 ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+  📄 Main.java
+  📍 Line 8
+  💬 ';' expected
+
+  thing.append("wrong")append("tool");
+                       ^
+
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+📊 1 error
+
+💡 Fix the errors above and try again.
+
+
+Git/learnjava/testing
+❯
+```

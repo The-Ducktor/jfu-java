@@ -388,7 +388,7 @@ pub fn format_runtime_errors(error_text: &str) -> String {
 ///
 /// A stack trace line looks like: `at MyClass.methodName(MyClass.java:42)`
 /// This function extracts "MyClass.java" and line 42, then tries to read and display
-/// the actual code that threw the exception.
+/// the actual code that threw the exception, showing multiple lines of context.
 fn extract_code_context(stack_line: &str) -> Option<String> {
     // Parse line like: "at MyClass.methodName(MyClass.java:42)"
     if let Some(paren_start) = stack_line.find('(') {
@@ -410,12 +410,36 @@ fn extract_code_context(stack_line: &str) -> Option<String> {
 
                     for path in paths_to_try {
                         if let Ok(content) = std::fs::read_to_string(&path) {
-                            if let Some(code_line) = content.lines().nth(line_num - 1) {
-                                let trimmed = code_line.trim();
-                                if !trimmed.is_empty() {
+                            let lines: Vec<&str> = content.lines().collect();
+                            if line_num > 0 && line_num <= lines.len() {
+                                let start = (line_num - 1).saturating_sub(2); // 2 lines before
+                                let end = (line_num + 2).min(lines.len()); // 2 lines after
+                                let context_lines = &lines[start..end];
+
+                                let mut result = String::new();
+                                for (i, &line) in context_lines.iter().enumerate() {
+                                    let actual_line_num = start + i + 1;
+                                    let trimmed = line.trim();
+                                    if trimmed.is_empty() {
+                                        continue;
+                                    }
                                     let highlighted = highlight_java_code(trimmed);
-                                    return Some(format!("    {} {}", "┃".cyan(), highlighted));
+                                    if actual_line_num == line_num {
+                                        // Highlight the error line with arrow
+                                        result.push_str(&format!(
+                                            "    {} {}\n",
+                                            "→".red(),
+                                            highlighted
+                                        ));
+                                    } else {
+                                        result.push_str(&format!(
+                                            "    {} {}\n",
+                                            "┃".cyan(),
+                                            highlighted
+                                        ));
+                                    }
                                 }
+                                return Some(result.trim_end().to_string());
                             }
                         }
                     }
