@@ -4,7 +4,7 @@ use std::process::{Command, Stdio};
 use std::sync::mpsc;
 use std::thread;
 
-use crate::build::{BuildContext, build_files};
+use crate::build::{build_files, BuildContext};
 use crate::classpath::{build_classpath_string, resolve_classpath};
 use crate::error_format::format_runtime_errors;
 

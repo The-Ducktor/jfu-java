@@ -12,6 +12,22 @@ use colored::*;
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
 
+fn default_src_dir() -> PathBuf {
+    PathBuf::from(".")
+}
+
+fn default_out_dir() -> PathBuf {
+    PathBuf::from("./out")
+}
+
+fn default_cache_file() -> PathBuf {
+    PathBuf::from("./jfu-cache.json")
+}
+
+fn default_clear_on_watch_rebuild() -> bool {
+    true
+}
+
 /// Project configuration loaded from jfu.toml or defaults.
 ///
 /// All fields have sensible defaults, so even a missing jfu.toml file will result
@@ -40,18 +56,12 @@ pub struct Config {
     /// Supports glob patterns including ** for recursive matching
     #[serde(default)]
     pub classpath: Vec<String>,
-}
-
-fn default_src_dir() -> PathBuf {
-    PathBuf::from(".")
-}
-
-fn default_out_dir() -> PathBuf {
-    PathBuf::from("./out")
-}
-
-fn default_cache_file() -> PathBuf {
-    PathBuf::from("./jfu-cache.json")
+    /// Clear terminal before each command run (default: false)
+    #[serde(default)]
+    pub clear_on_run: bool,
+    /// Clear terminal before each watch rebuild (default: true)
+    #[serde(default = "default_clear_on_watch_rebuild")]
+    pub clear_on_watch_rebuild: bool,
 }
 
 impl Default for Config {
@@ -64,6 +74,8 @@ impl Default for Config {
             entrypoint: None,
             auto_include_implicit_deps: false,
             classpath: Vec::new(),
+            clear_on_run: false,
+            clear_on_watch_rebuild: default_clear_on_watch_rebuild(),
         }
     }
 }

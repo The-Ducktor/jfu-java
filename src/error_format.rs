@@ -1,5 +1,5 @@
 use colored::*;
-use terminal_size::{Width, terminal_size};
+use terminal_size::{terminal_size, Width};
 
 use crate::search::get_method_suggestions_with_signatures;
 use crate::syntax::highlight_java_code;

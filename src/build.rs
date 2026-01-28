@@ -11,7 +11,7 @@
 use colored::*;
 use std::{fs, path::Path, process::Command};
 
-use crate::cache::{CacheEntry, compute_hash, load_cache, needs_rebuild, save_cache};
+use crate::cache::{compute_hash, load_cache, needs_rebuild, save_cache, CacheEntry};
 use crate::classpath::{build_classpath_string, resolve_classpath};
 use crate::config::Config;
 use crate::error_format::format_java_errors;

@@ -43,8 +43,9 @@ mod run;
 mod search;
 mod syntax;
 mod tree;
+mod watch;
 
-use build::{BuildContext, build_files};
+use build::{build_files, BuildContext};
 use clean::clean;
 use config::Config;
 use docs::init_docs;
@@ -52,6 +53,7 @@ use init::init_config;
 use run::run_file;
 use search::{interactive_search, search_class, search_methods};
 use tree::show_tree;
+use watch::{clear_if_needed, watch_files};
 
 // ============================================================================
 // CLI Definition
@@ -76,6 +78,14 @@ struct Cli {
     /// Automatically include all public classes in the same directory as implicit dependencies
     #[arg(long, global = true)]
     auto_implicit: bool,
+
+    /// Clear terminal before output
+    #[arg(long, global = true)]
+    clear: bool,
+
+    /// Watch for file changes and auto-rebuild
+    #[arg(long, global = true)]
+    watch: bool,
 }
 
 #[derive(Subcommand)]
@@ -128,55 +138,86 @@ fn main() {
         config.auto_include_implicit_deps = true;
     }
 
+    let clear_on_run = cli.clear || config.clear_on_run;
+
     let ctx = BuildContext {
         config: config.clone(),
         verbose: cli.verbose,
         force: cli.force,
     };
 
-    let result = match cli.command {
-        Commands::Build { file } => {
-            let file = file
-                .or_else(|| config.entrypoint.clone())
-                .unwrap_or_else(|| "Main.java".to_string());
-            build_files(&ctx, &file)
-        }
-        Commands::Run { file } => {
-            let file = file
-                .or_else(|| config.entrypoint.clone())
-                .unwrap_or_else(|| "Main.java".to_string());
-            run_file(&ctx, &file)
-        }
-        Commands::Clean => clean(&config),
-        Commands::Tree { file } => {
-            let file = file
-                .or_else(|| config.entrypoint.clone())
-                .unwrap_or_else(|| "Main.java".to_string());
-            show_tree(&config, &file, cli.verbose)
-        }
-        Commands::Init { force } => init_config(force),
-        Commands::Search { args, interactive } => {
-            // Initialize docs with verbose flag if needed
-            init_docs(cli.verbose);
-
-            if interactive {
-                interactive_search()
-            } else if args.is_empty() {
-                Err("Please provide a class name to search or use --interactive".to_string())
-            } else {
-                let class = &args[0];
-                if args.len() == 1 {
-                    search_class(class, cli.verbose)
-                } else {
-                    let method_query = args[1..].join(" ");
-                    search_methods(class, Some(&method_query))
+    if cli.watch {
+        match cli.command {
+            Commands::Build { file } => {
+                let file = file
+                    .or_else(|| config.entrypoint.clone())
+                    .unwrap_or_else(|| "Main.java".to_string());
+                if let Err(e) = watch_files(&config, &file, false, &ctx) {
+                    eprintln!("\n{} {}", "❌".red(), e.red());
+                    std::process::exit(1);
                 }
             }
+            Commands::Run { file } => {
+                let file = file
+                    .or_else(|| config.entrypoint.clone())
+                    .unwrap_or_else(|| "Main.java".to_string());
+                if let Err(e) = watch_files(&config, &file, true, &ctx) {
+                    eprintln!("\n{} {}", "❌".red(), e.red());
+                    std::process::exit(1);
+                }
+            }
+            _ => {
+                eprintln!("--watch is only supported for build and run commands");
+                std::process::exit(1);
+            }
         }
-    };
+    } else {
+        clear_if_needed(clear_on_run);
 
-    if let Err(e) = result {
-        eprintln!("\n{} {}", "❌".red(), e.red());
-        std::process::exit(1);
+        let result = match cli.command {
+            Commands::Build { file } => {
+                let file = file
+                    .or_else(|| config.entrypoint.clone())
+                    .unwrap_or_else(|| "Main.java".to_string());
+                build_files(&ctx, &file)
+            }
+            Commands::Run { file } => {
+                let file = file
+                    .or_else(|| config.entrypoint.clone())
+                    .unwrap_or_else(|| "Main.java".to_string());
+                run_file(&ctx, &file)
+            }
+            Commands::Clean => clean(&config),
+            Commands::Tree { file } => {
+                let file = file
+                    .or_else(|| config.entrypoint.clone())
+                    .unwrap_or_else(|| "Main.java".to_string());
+                show_tree(&config, &file, cli.verbose)
+            }
+            Commands::Init { force } => init_config(force),
+            Commands::Search { args, interactive } => {
+                // Initialize docs with verbose flag if needed
+                init_docs(cli.verbose);
+
+                if interactive {
+                    interactive_search()
+                } else if args.is_empty() {
+                    Err("Please provide a class name to search or use --interactive".to_string())
+                } else {
+                    let class = &args[0];
+                    if args.len() == 1 {
+                        search_class(class, cli.verbose)
+                    } else {
+                        let method_query = args[1..].join(" ");
+                        search_methods(class, Some(&method_query))
+                    }
+                }
+            }
+        };
+
+        if let Err(e) = result {
+            eprintln!("\n{} {}", "❌".red(), e.red());
+            std::process::exit(1);
+        }
     }
 }

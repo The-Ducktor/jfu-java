@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::config::Config;
-use crate::graph::{Node, build_dependency_graph};
+use crate::graph::{build_dependency_graph, Node};
 
 fn print_tree(
     graph: &HashMap<String, Node>,

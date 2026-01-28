@@ -38,6 +38,14 @@ jvm_opts = [
 # When set to false (default), warnings will be shown for implicit dependencies.
 auto_include_implicit_deps = false
 
+# Clear the terminal before each command run
+# Useful for keeping output clean, especially in scripts or CI
+clear_on_run = false
+
+# Clear the terminal before each auto-rebuild in watch mode
+# Defaults to true for cleaner watch output; set to false to preserve scrollback
+clear_on_watch_rebuild = true
+
 # Future features (not yet implemented):
 #
 # [dependencies]

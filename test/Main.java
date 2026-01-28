@@ -9,6 +9,7 @@ public class Main {
 
         Runner runner = new Runner();
         runner.execute();
+        System.out.println("test");
 
         Cool cool = new Cool();
         cool.doCoolStuff();

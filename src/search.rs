@@ -1,7 +1,7 @@
 //! Search functionality for Java API documentation using embedded docs
 
 use crate::{
-    docs::{Class, Method, Package, get_docs},
+    docs::{get_docs, Class, Method, Package},
     fuzzy::smart_match_methods,
     syntax::highlight_java_code,
 };
@@ -276,7 +276,11 @@ fn display_method(method: &Method, show_descriptions: bool) {
     for (idx, overload) in method.overloads.iter().enumerate() {
         let is_last = idx == method.overloads.len() - 1;
         let prefix = if overload_count > 1 {
-            if is_last { "  └─" } else { "  ├─" }
+            if is_last {
+                "  └─"
+            } else {
+                "  ├─"
+            }
         } else {
             "    "
         };
@@ -298,7 +302,11 @@ fn display_method(method: &Method, show_descriptions: bool) {
             // Format description with indentation
             let desc_lines: Vec<&str> = overload.description.lines().collect();
             let continuation = if overload_count > 1 {
-                if is_last { "     " } else { "  │  " }
+                if is_last {
+                    "     "
+                } else {
+                    "  │  "
+                }
             } else {
                 "     "
             };

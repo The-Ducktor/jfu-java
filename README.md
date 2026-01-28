@@ -66,6 +66,8 @@ That's it. It figures out the rest.
 - `-v, --verbose` - Print detailed build information
 - `-f, --force` - Force rebuild, ignore cache
 - `--auto-implicit` - Automatically include all public classes in src_dir
+- `--clear` - Clear terminal before output
+- `--watch` - Watch for file changes and auto-rebuild (build/run commands only)
 
 ## Configuration (jfu.toml)
 
@@ -86,6 +88,12 @@ jvm_opts = ["-Xmx1g"]
 
 # Automatically include implicit dependencies from same directory
 auto_include_implicit_deps = false
+
+# Clear terminal before each command run
+clear_on_run = false
+
+# Clear terminal before each auto-rebuild in watch mode
+clear_on_watch_rebuild = true
 
 # External JAR files (supports glob patterns including **)
 classpath = [
