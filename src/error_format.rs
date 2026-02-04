@@ -8,8 +8,8 @@ use lazy_static::lazy_static;
 struct HintRule {
     pattern: &'static str,
     title: &'static str,
-    explanation: &'static str,
-    suggestions: Vec<&'static str>,
+    explanation: Box<dyn Fn(&str) -> String + Sync>,
+    suggestions: Box<dyn Fn(&str) -> Vec<String> + Sync>,
 }
 
 lazy_static! {
@@ -17,35 +17,69 @@ lazy_static! {
         HintRule {
             pattern: "cannot be dereferenced",
             title: "Primitive types are not objects",
-            explanation:
-                "In Java, primitive types (like int, boolean, char) don't have methods or fields.",
-            suggestions: vec![
-                "Use String.valueOf(variable) to convert it to a string",
-                "Use the wrapper class (e.g., Integer.toString(i) instead of i.toString())",
-                "Change the variable type to its wrapper class (e.g., 'Integer' instead of 'int')"
-            ],
+            explanation: Box::new(|msg| {
+                let type_name = msg.split_whitespace().next().unwrap_or("This type");
+                format!(
+                    "In Java, primitive types (like {}) don't have methods or fields.",
+                    type_name
+                )
+            }),
+            suggestions: Box::new(|msg| {
+                let type_name = msg.split_whitespace().next().unwrap_or("int");
+                let wrapper = match type_name {
+                    "int" => "Integer",
+                    "boolean" => "Boolean",
+                    "char" => "Character",
+                    "long" => "Long",
+                    "double" => "Double",
+                    "float" => "Float",
+                    "byte" => "Byte",
+                    "short" => "Short",
+                    _ => "its wrapper class",
+                };
+                vec![
+                    "Use String.valueOf(variable) to convert it to a string".to_string(),
+                    format!(
+                        "Use the wrapper class (e.g., {}.toString(v) instead of v.toString())",
+                        wrapper
+                    ),
+                    format!(
+                        "Change the variable type to '{}' instead of '{}'",
+                        wrapper, type_name
+                    ),
+                ]
+            }),
         },
         HintRule {
             pattern: "cannot find symbol",
             title: "Symbol not found",
-            explanation:
-                "The compiler doesn't recognize this name. It could be a typo or a missing import.",
-            suggestions: vec![
-                "Check for typos in the variable or method name",
-                "Make sure you have imported the necessary class",
-                "Verify the variable is declared in this scope"
-            ],
+            explanation: Box::new(|_| {
+                "The compiler doesn't recognize this name. It could be a typo or a missing import."
+                    .to_string()
+            }),
+            suggestions: Box::new(|_| {
+                vec![
+                    "Check for typos in the variable or method name".to_string(),
+                    "Make sure you have imported the necessary class".to_string(),
+                    "Verify the variable is declared in this scope".to_string(),
+                ]
+            }),
         },
         HintRule {
             pattern: "non-static variable",
             title: "Static Context Error",
-            explanation:
-                "You're trying to access an instance variable from a static method (like main).",
-            suggestions: vec![
-                "Make the variable 'static'",
-                "Create an instance of the class and access the variable through it",
-                "Move the logic to a non-static method"
-            ],
+            explanation: Box::new(|_| {
+                "You're trying to access an instance variable from a static method (like main)."
+                    .to_string()
+            }),
+            suggestions: Box::new(|_| {
+                vec![
+                    "Make the variable 'static'".to_string(),
+                    "Create an instance of the class and access the variable through it"
+                        .to_string(),
+                    "Move the logic to a non-static method".to_string(),
+                ]
+            }),
         },
     ];
 }
@@ -253,9 +287,9 @@ pub fn format_java_errors(error_text: &str) -> String {
                         formatted.push_str(&format!(
                             "    {} {}\n",
                             "→".cyan(),
-                            rule.explanation.bright_black()
+                            (rule.explanation)(error_msg).white()
                         ));
-                        for suggestion in &rule.suggestions {
+                        for suggestion in (rule.suggestions)(error_msg) {
                             formatted.push_str(&format!(
                                 "    {} {}\n",
                                 "•".cyan(),
