@@ -1,5 +1,5 @@
 // This class is super cool!
-class Cool {
+public class Cool {
 
     public void doCoolStuff() {
         System.out.println("\n😎 Cool is doing cool stuff...");
@@ -7,6 +7,7 @@ class Cool {
         System.out.println("  * Looking good");
         System.out.println("  * Living life");
         System.out.println("  * Testing incremental builds!");
+        
     }
 
     public boolean isCool() {
