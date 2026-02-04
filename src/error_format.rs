@@ -3,6 +3,52 @@ use terminal_size::{terminal_size, Width};
 
 use crate::search::get_method_suggestions_with_signatures;
 use crate::syntax::highlight_java_code;
+use lazy_static::lazy_static;
+
+struct HintRule {
+    pattern: &'static str,
+    title: &'static str,
+    explanation: &'static str,
+    suggestions: Vec<&'static str>,
+}
+
+lazy_static! {
+    static ref HINT_RULES: Vec<HintRule> = vec![
+        HintRule {
+            pattern: "cannot be dereferenced",
+            title: "Primitive types are not objects",
+            explanation:
+                "In Java, primitive types (like int, boolean, char) don't have methods or fields.",
+            suggestions: vec![
+                "Use String.valueOf(variable) to convert it to a string",
+                "Use the wrapper class (e.g., Integer.toString(i) instead of i.toString())",
+                "Change the variable type to its wrapper class (e.g., 'Integer' instead of 'int')"
+            ],
+        },
+        HintRule {
+            pattern: "cannot find symbol",
+            title: "Symbol not found",
+            explanation:
+                "The compiler doesn't recognize this name. It could be a typo or a missing import.",
+            suggestions: vec![
+                "Check for typos in the variable or method name",
+                "Make sure you have imported the necessary class",
+                "Verify the variable is declared in this scope"
+            ],
+        },
+        HintRule {
+            pattern: "non-static variable",
+            title: "Static Context Error",
+            explanation:
+                "You're trying to access an instance variable from a static method (like main).",
+            suggestions: vec![
+                "Make the variable 'static'",
+                "Create an instance of the class and access the variable through it",
+                "Move the logic to a non-static method"
+            ],
+        },
+    ];
+}
 
 /// Get the current terminal width, defaulting to 80 if unable to detect
 fn get_terminal_width() -> usize {
@@ -190,6 +236,30 @@ pub fn format_java_errors(error_text: &str) -> String {
                                 "      {} ... and {} more overload(s)\n",
                                 "•".bright_black(),
                                 suggestions.len() - 3
+                            ));
+                        }
+                    }
+                }
+
+                // Apply hint rules
+                for rule in HINT_RULES.iter() {
+                    if error_msg.contains(rule.pattern) {
+                        formatted.push_str("\n");
+                        formatted.push_str(&format!(
+                            "  {} {}\n",
+                            "💡".yellow(),
+                            format!("Hint: {}", rule.title).yellow().bold()
+                        ));
+                        formatted.push_str(&format!(
+                            "    {} {}\n",
+                            "→".cyan(),
+                            rule.explanation.bright_black()
+                        ));
+                        for suggestion in &rule.suggestions {
+                            formatted.push_str(&format!(
+                                "    {} {}\n",
+                                "•".cyan(),
+                                suggestion.white()
                             ));
                         }
                     }
